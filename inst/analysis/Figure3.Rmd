@@ -1,0 +1,1314 @@
+---
+title: TGF-β attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells - Figure 3 and related data
+author: Dorothee Nickles
+date: "`r format(Sys.time())`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cosmo
+    code_folding: hide
+---
+
+```{r options, echo=FALSE}
+options(replace.assign=TRUE, width=90)
+opts_chunk$set(dev=c('png'), fig.width=2.5, fig.height=3.5, out.width='800px', fig.align='center', fig.pos='htbp', fig.retina=FALSE, dev.args=list(pointsize=11), cache=FALSE, dpi=300)
+```
+
+```{r libraries, cache=FALSE, message=FALSE}
+## libraries
+library(DESeq2)
+library(limma)
+library(edgeR)
+library(ComplexHeatmap)
+library(circlize)
+#library(RColorBrewer)
+```
+
+```{r settings}
+# gene sets
+data(human_gene_signatures)
+ind_genes <- human_gene_signatures
+
+# colors
+data(color_palettes)
+
+# variables
+irf <- "Best Confirmed Overall Response"
+ml <- "FMOne mutation burden per MB"
+goi <- names(ind_genes)
+tablesDir <- system.file("tables", 
+  package="IMvigor210CoreBiologies")
+
+# font sizes
+labCex <- 0.9
+namesCex <- 0.9
+legendCex <- 0.9
+titleCex <- 1
+axisCex <- 0.9
+titleF <- 1
+```
+
+```{r prepare_biomarker_data}
+# load
+data(cds)  
+cds2 <- cds
+data(fmone)
+fmi <- fmone
+
+# variables
+goi <- names(ind_genes)
+
+# normalize 
+geneNames <- setNames(fData(cds2)$Symbol, 
+  as.character(rownames(fData(cds2))))
+voomD <- filterNvoom(counts(cds2),
+  minSamples=ncol(counts(cds2))/10,
+  minCpm=0.25)
+m <- voomD$E
+m <- t(scale( t( m ),
+  center=TRUE, 
+  scale=TRUE)
+)
+# add signature scores to pData()
+m2 <- m
+rownames(m2) <- geneNames[rownames(m2)]
+
+# calculate gene set scores
+for (sig in goi) {
+  pData(cds2)[, sig] <- NA
+  genes <- ind_genes[[sig]]
+  genes <- genes[genes %in% rownames(m2)]
+  tmp <- m2[genes, , drop=FALSE]
+  pData(cds2)[, sig] <- gsScore(tmp)
+}
+```
+
+
+# Figure 3
+
+```{r figure3, fig.width=7, fig.height=8}
+dropNE <- TRUE
+
+pdata <- pData(cds2)
+
+pdata$Lund <- factor(pdata$Lund,
+  levels=c("MS1a", "MS1b", 
+    "MS2a1", "MS2a2", "MS2b1", "MS2b2.1", "MS2b2.2"))
+pdata2 <- pdata
+pdata2$Lund3 <- factor(pdata2$Lund2,
+  labels=c("UroA", "GU", "Inf", "UroB", "SCCL"))
+
+## if TRUE, drop patients without defined response
+if (dropNE) {
+  ind <- pdata2[, irf] != "NE"
+  pdata2 <- pdata2[ind, ]
+  pdata2[, irf] <- droplevels(pdata2[, irf])
+}
+
+## read in features to be plotted
+subtypeHeatSig2 <- read.csv(file.path(tablesDir,
+    "heatmap_features.csv"),
+  as.is=TRUE)
+subtypeHeatSig2 <- subtypeHeatSig2[subtypeHeatSig2$genes %in% rownames(m2),]
+
+matT <- m2[subtypeHeatSig2$genes, rownames(pdata2)]
+## define row split
+matSplit <- subtypeHeatSig2$pathway
+matSplit <- factor(matSplit,
+  levels=unique(matSplit),
+  labels=LETTERS[1:length(unique(matSplit))])
+
+## gene expression, order by Lund
+sOrder <- order(pdata2$"Lund2",
+  pdata2$"Lund",
+  pdata2[, irf])
+pdata2 <- pdata2[sOrder,]
+matT <- matT[, sOrder]
+
+## mutations in select genes
+dnaGoi <- c("TP53",
+  "RB1",
+  "FGFR3",
+  "CDKN2A",
+  "ERBB2",
+  "PIK3CA")
+fmiGoi <- fmi[dnaGoi, ]
+mutGoi <- any_mutation(fmiGoi)
+mutGoi <- apply(mutGoi, 2, function(x) {
+  ifelse(x, "mutant", "non-mutant")
+})
+colnames(mutGoi) <- as.character(pData(fmi)$"ANONPT_ID")
+mt <- match(as.character(pdata2$"ANONPT_ID"), colnames(mutGoi))
+mutGoi <- mutGoi[, mt]
+
+## is fraction of RB1 mutants different between GU and SCC subtypes?
+tmp <- table(mutGoi["RB1", ], pdata2$Lund2)
+tmp2 <- tmp[, c("Genomically unstable", "Basal/SCC-like")]
+print(paste("Fisher P-value for difference in the number of RB1 mutants between GU and SCCL:",
+  signif(fisher.test(tmp2)$p.value)))
+print(prop.table(tmp, 2))
+print(prop.table(tmp, 1))
+
+## is fraction of TP53 mutants different between GU and SCC subtypes?
+tmp <- table(mutGoi["TP53", ], pdata2$Lund2)
+tmp2 <- tmp[, c("Genomically unstable", "Basal/SCC-like")]
+print(paste("Fisher P-value for difference in the number of TP53 mutants between GU and SCCL:",
+  signif(fisher.test(tmp2)$p.value)))
+print(prop.table(tmp, 2))
+print(prop.table(tmp, 1))
+
+
+## define sample annotations
+ha = HeatmapAnnotation(Lund=pdata2$Lund3,
+  TCGA=pdata2$"TCGA Subtype",
+  IC=pdata2$"IC Level",
+  TC=pdata2$"TC Level",
+  Response=pdata2[, irf],
+  TMB = anno_barplot(as.numeric(pdata2[, ml]),
+    border=FALSE,
+    gp = gpar(fill="black")),
+  TP53=mutGoi["TP53",],
+  RB1=mutGoi["RB1",],
+  FGFR3=mutGoi["FGFR3",],
+  CDKN2A=mutGoi["CDKN2A",],
+  ERBB2=mutGoi["ERBB2",],
+  PIK3CA=mutGoi["PIK3CA",],
+  annotation_height=unit.c(rep(unit(0.3, "cm"), 5), 
+    unit(0.6, "cm"),
+    unit.c(rep(unit(0.3, "cm"), 6))),
+  annotation_legend_param=list(labels_gp = gpar(fontsize = 9),
+    title_gp = gpar(fontsize = 9, fontface = "bold"),
+    ncol=2),
+  gap=unit(c(1, rep(0, 4), 1, rep(0, 5)), "mm"),
+  col=list(IC=color_palettes$ic_palette,
+    TC=color_palettes$tc_palette,
+    Response=color_palettes$irf_palette,
+    Lund=color_palettes$lund_palette3,
+    TCGA=color_palettes$tcga_palette,
+    TP53=c(mutant="black", "non-mutant"="white"),
+    RB1=c(mutant="black", "non-mutant"="white"),
+    FGFR3=c(mutant="black", "non-mutant"="white"),
+    CDKN2A=c(mutant="black", "non-mutant"="white"),
+    ERBB2=c(mutant="black", "non-mutant"="white"),
+    PIK3CA=c(mutant="black", "non-mutant"="white")),
+    show_annotation_name = TRUE,
+    #annotation_name_side="left",
+    annotation_name_gp = gpar(fontsize = 7))
+
+## gene expression heatmap
+heat_colors2 <- colorRamp2(c(-2.5, 0, 2.5), c("blue", "white", "red"))
+
+ht1org <- Heatmap(limitRange(matT),
+  name="Expression",
+  top_annotation = ha,
+  cluster_rows = FALSE,
+  col=heat_colors2,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  row_order=NULL,
+  column_order=NULL,
+  show_column_names = FALSE,
+  #show_row_names = FALSE,
+  row_names_gp = gpar(fontsize = 5),
+  split=matSplit,
+  gap = unit(1, "mm"),
+  column_title = "",
+  column_title_gp = gpar(fontsize = 5),
+  width=unit(8, "cm"),
+  show_heatmap_legend = TRUE,
+  heatmap_legend_param=list(labels_gp = gpar(fontsize = 9),
+    title_gp = gpar(fontsize = 9, fontface = "bold"))) 
+
+
+## heatmap with decorations
+ht_list = ht1org
+
+draw(ht_list, 
+  padding = unit(c(2, 0, 7, 0), "mm"))
+
+uLim <- 7.4
+lLim <- -24.8
+decorate_heatmap_body("Expression", {
+  grid.lines(c(0.3, 0.3), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Expression", {
+  grid.lines(c(0.48, 0.48), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Expression", {
+  grid.lines(c(0.765, 0.765), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Expression", {
+  grid.lines(c(0.815, 0.815), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Expression", {
+  grid.text("UroA", 0.15, 8.7, default.units = "native",
+    gp = gpar(fontsize=9))
+  grid.text("GU", 0.39, 8.7, default.units = "native",
+    gp = gpar(fontsize=9))
+  grid.text("Inf", 0.6225, 8.7, default.units = "native",
+    gp = gpar(fontsize=9))
+  grid.text("SCCL", 0.9075, 8.7, default.units = "native",
+    gp = gpar(fontsize=9))
+})
+```
+
+
+```{r figure3_inset, fig.width=3.5}
+## linear models testing association between subtypes and response, complete as well as partial response
+tmpDat <- pdata[pdata[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+fit_resp_0 <- glm(tmpDat$binaryResponse ~ 1,
+  family="binomial")
+fit_resp_l <- glm(tmpDat$binaryResponse ~ tmpDat$Lund2,
+  family="binomial")
+aFit <- anova(fit_resp_0, fit_resp_l, test="Chisq")
+print(aFit)
+pvalAll <- signif(aFit$"Pr(>Chi)"[2])
+
+print(summary(fit_resp_l))
+
+## Fisher test for response rate GU versus others
+tmpDat$group <- ifelse(tmpDat$Lund2 == "Genomically unstable", "GU", "Others")
+a <- table(tmpDat$binaryResponse, tmpDat$group)
+print(prop.table(a, 2))
+pvalF <- signif(fisher.test(a)$p.value, 2)
+print(paste("Fisher P binary response GU versus other Lund:", pvalF))
+
+for (rr in c("CR", "PR")) {
+  tmpDat$group2 <- factor(ifelse(tmpDat[, irf] == rr, rr, "Others"))
+  fit_resp_0 <- glm(tmpDat$group2 ~ 1,
+    family="binomial")
+  fit_resp_l <- glm(tmpDat$group2 ~ tmpDat$Lund2,
+    family="binomial")
+  print(paste(rr, "vs. others"))
+  print(anova(fit_resp_0, fit_resp_l, test="Chisq"))
+  print(summary(fit_resp_l))
+}
+
+## plot response by Lund subtype
+oldMar <- par()$mar
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+tmpDat$Lund3 <- factor(tmpDat$Lund2,
+  labels=c("UroA", "GU", "Inf", "UroB", "SCCL"))
+
+ic <- table(tmpDat$Lund3, tmpDat[, irf])
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+bWidth <- 0.1
+b <- barplot(ic,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex, 
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=color_palettes$irf_palette,
+  width=bWidth,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x=xLim,
+    y=1),
+  plot=FALSE)
+xLim <- b[1] * 2 + b[5] + bWidth * 2
+a <- barplot(ic,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex, 
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=color_palettes$irf_palette,
+  width=bWidth,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x=xLim,
+    y=1),
+  xaxt="n")
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.06, 
+  labels = levels(tmpDat$Lund3), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.6)
+mtext("Response, Lund",
+  side=3,
+  at=a[3],
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+
+<br>
+
+# Extended Data
+
+## ED Figure 3
+
+```{r figureS3a, fig.width=9, fig.height=8}
+dropNE <- TRUE
+heat_colors2 <- colorRamp2(c(-2.5, 0, 2.5), c("blue", "white", "red"))
+
+pdata$Lund <- factor(pdata$Lund,
+  levels=c("MS1a", "MS1b", 
+    "MS2a1", "MS2a2", "MS2b1", "MS2b2.1", "MS2b2.2"))
+pdata2 <- pdata
+pdata2$Lund3 <- factor(pdata2$Lund2,
+  labels=c("UroA", "GU", "Inf", "UroB", "SCCL"))
+
+if (dropNE) {
+  ind <- pdata2[, irf] != "NE"
+  pdata2 <- pdata2[ind, ]
+  pdata2[, irf] <- droplevels(pdata2[, irf])
+}
+
+## read in features to be plotted
+subtypeHeatSig2 <- read.csv(file.path(tablesDir,
+    "heatmap_features.csv"),
+  as.is=TRUE)
+tcgaAdd <- data.frame(genes=ind_genes$TCGA,
+  pathway=rep("TCGA", length(ind_genes$TCGA)),
+  stringsAsFactors=FALSE)
+subtypeHeatSig2 <- rbind(tcgaAdd, 
+  subtypeHeatSig2)
+subtypeHeatSig2 <- subtypeHeatSig2[subtypeHeatSig2$genes %in% rownames(m2),]
+
+matT <- m2[subtypeHeatSig2$genes, rownames(pdata2)]
+## define row split
+matSplit <- subtypeHeatSig2$pathway
+matSplit <- factor(matSplit,
+  levels=unique(matSplit),
+  labels=c("TCGA", LETTERS[1:length(unique(matSplit)) - 1]))
+
+## order by TCGA
+sOrder <- order(pdata2$"TCGA Subtype",
+  pdata2[, irf])
+pdata2 <- pdata2[sOrder,]
+matT <- matT[, sOrder]
+
+## mutations in select genes
+dnaGoi <- c("TP53",
+  "RB1",
+  "FGFR3",
+  "CDKN2A",
+  "ERBB2",
+  "PIK3CA")
+fmiGoi <- fmi[dnaGoi, ]
+mutGoi <- any_mutation(fmiGoi)
+mutGoi <- apply(mutGoi, 2, function(x) {
+  ifelse(x, "mutant", "non-mutant")
+})
+colnames(mutGoi) <- as.character(pData(fmi)$"ANONPT_ID")
+mt <- match(as.character(pdata2$"ANONPT_ID"), colnames(mutGoi))
+mutGoi <- mutGoi[, mt]
+
+## define TCGA annotations
+ha = HeatmapAnnotation(TCGA=pdata2$"TCGA Subtype",
+  Lund=pdata2$Lund3,
+  Cluster=pdata2$Lund,
+  IC=pdata2$"IC Level",
+  TC=pdata2$"TC Level",
+  Response=pdata2[, irf],
+  TMB = anno_barplot(as.numeric(pdata2[, ml]),
+    border=FALSE,
+    gp = gpar(fill="black")),
+  TP53=mutGoi["TP53",],
+  RB1=mutGoi["RB1",],
+  FGFR3=mutGoi["FGFR3",],
+  CDKN2A=mutGoi["CDKN2A",],
+  ERBB2=mutGoi["ERBB2",],
+  PIK3CA=mutGoi["PIK3CA",],
+  annotation_height=unit.c(rep(unit(0.3, "cm"), 6), 
+    unit(0.6, "cm"),
+    unit.c(rep(unit(0.3, "cm"), 6))),
+  annotation_legend_param=list(labels_gp = gpar(fontsize = 8),
+    title_gp = gpar(fontsize = 8, fontface = "bold"),
+    ncol=2),
+  gap=unit(c(rep(0, 6), 1, rep(0, 5)), "mm"),
+  col=list(IC=color_palettes$ic_palette,
+    TC=color_palettes$tc_palette,
+    Response=color_palettes$irf_palette,
+    Cluster=color_palettes$lund_palette,
+    Lund=color_palettes$lund_palette3,
+    TCGA=color_palettes$tcga_palette,
+    TP53=c(mutant="black", "non-mutant"="white"),
+    RB1=c(mutant="black", "non-mutant"="white"),
+    FGFR3=c(mutant="black", "non-mutant"="white"),
+    CDKN2A=c(mutant="black", "non-mutant"="white"),
+    ERBB2=c(mutant="black", "non-mutant"="white"),
+    PIK3CA=c(mutant="black", "non-mutant"="white")),
+  show_annotation_name = TRUE,
+  annotation_name_side="left",
+  annotation_name_gp = gpar(fontsize = 6),
+  show_legend=FALSE)
+
+## gene expression heatmap TCGA
+ht1tcga <- Heatmap(limitRange(matT),
+  name="TCGA",
+  top_annotation = ha,
+  cluster_rows = FALSE,
+  col=heat_colors2,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  row_order=NULL,
+  column_order=NULL,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  row_names_gp = gpar(fontsize = 5),
+  split=matSplit,
+  gap = unit(1, "mm"),
+  column_title = "TCGA",
+  column_title_gp = gpar(fontsize = 8, fontface = "bold"),
+  width=unit(5, "cm"),
+  show_heatmap_legend = FALSE,
+  heatmap_legend_param=list(labels_gp = gpar(fontsize = 8),
+    title_gp = gpar(fontsize = 8, fontface = "bold"))) 
+
+## gene expression, order by Lund
+sOrder <- order(pdata2$"Lund",
+  pdata2$"Lund2",
+  pdata2[, irf])
+pdata2 <- pdata2[sOrder,]
+matT <- matT[, sOrder]
+mt <- match(as.character(pdata2$"ANONPT_ID"), colnames(mutGoi))
+mutGoi <- mutGoi[, mt]                                               
+
+## define Lund annotations
+ha = HeatmapAnnotation(Cluster=pdata2$Lund,
+  Lund=pdata2$Lund3,
+  TCGA=pdata2$"TCGA Subtype",
+  IC=pdata2$"IC Level",
+  TC=pdata2$"TC Level",
+  Response=pdata2[, irf],
+  #Cohort=ifelse(pdata2$Cohort == "Cohort1", "Cisplatin-ineligible", "Platinum-resistant"),
+  TMB = anno_barplot(as.numeric(pdata2[, ml]),
+    border=FALSE,
+    gp = gpar(fill="black")),
+  TP53=mutGoi["TP53",],
+  RB1=mutGoi["RB1",],
+  FGFR3=mutGoi["FGFR3",],
+  CDKN2A=mutGoi["CDKN2A",],
+  ERBB2=mutGoi["ERBB2",],
+  PIK3CA=mutGoi["PIK3CA",],
+  annotation_height=unit.c(rep(unit(0.3, "cm"), 6), 
+    unit(0.6, "cm"),
+    unit.c(rep(unit(0.3, "cm"), 6))),
+  annotation_legend_param=list(labels_gp = gpar(fontsize = 8),
+    title_gp = gpar(fontsize = 8, fontface = "bold"),
+    ncol=2,
+    TP53=list(tile="Mutation Status", 
+      at=c("mutant", "non-mutant"),
+      labels=c("mutant", "non-mutant")),
+    RB1=list(title="",
+      at="",
+      labels="")),
+  gap=unit(c(rep(0, 6), 1, rep(0, 5)), "mm"),
+  col=list(Cluster=color_palettes$lund_palette,
+    IC=color_palettes$ic_palette,
+    TC=color_palettes$tc_palette,
+    Response=color_palettes$irf_palette,
+    Lund=color_palettes$lund_palette3,
+    TCGA=color_palettes$tcga_palette,
+    TP53=c(mutant="black", "non-mutant"="white"),
+    RB1=c(mutant="black", "non-mutant"="white"),
+    FGFR3=c(mutant="black", "non-mutant"="white"),
+    CDKN2A=c(mutant="black", "non-mutant"="white"),
+    ERBB2=c(mutant="black", "non-mutant"="white"),
+    PIK3CA=c(mutant="black", "non-mutant"="white")),
+  show_annotation_name = TRUE,
+  annotation_name_gp = gpar(fontsize = 5),
+  show_legend=TRUE)
+
+## gene expression heatmap
+ht2lund <- Heatmap(limitRange(matT),
+  name="Lund",
+  top_annotation = ha,
+  cluster_rows = FALSE,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  col=heat_colors2,
+  row_order=NULL,
+  column_order=NULL,
+  show_column_names = FALSE,
+  #show_row_names = FALSE,
+  row_names_gp = gpar(fontsize = 4),
+  split=matSplit,
+  gap = unit(1, "mm"),
+  column_title = "Lund",
+  heatmap_legend_param=list(labels_gp = gpar(fontsize = 8),
+    title_gp = gpar(fontsize = 8, fontface = "bold")),
+  column_title_gp = gpar(fontsize = 8, fontface = "bold"),
+  width=unit(5, "cm"),
+  show_heatmap_legend = TRUE) 
+
+# plot heatmaps with decorations
+ht1tcga + ht2lund
+uLim <- 7.8
+lLim <- -24.8
+decorate_heatmap_body("Lund", {
+  grid.lines(c(0.3, 0.3), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Lund", {
+  grid.lines(c(0.48, 0.48), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Lund", {
+  grid.lines(c(0.765, 0.765), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("Lund", {
+  grid.lines(c(0.815, 0.815), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+
+decorate_heatmap_body("TCGA", {
+  grid.lines(c(0.36, 0.36), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("TCGA", {
+  grid.lines(c(0.61, 0.61), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+decorate_heatmap_body("TCGA", {
+  grid.lines(c(0.815, 0.815), unit(c(lLim, uLim), "native"), 
+    gp = gpar(col = "black", lwd = 1))
+})
+
+# tabulation TCGA subtype versus Lund subtype
+print(prop.table(table(TCGA=pData(cds2)$"TCGA Subtype", Lund=pData(cds2)$Lund2), 2))
+```
+
+
+```{r figureS3b}
+resp <- "binaryResponse"
+
+tmps <- pData(cds2)
+tmps$PPARG <- scale(m2["PPARG", ], center=TRUE, scale=TRUE)
+
+for (sig in c("FGFR3 related", "WNT target", "PPARG")) {
+  
+  plotDots <- FALSE
+
+  par(mar=c(5.5, 4.1, 2, 2))
+
+  feat <- "Lund2"
+
+  tmpDat <- tmps
+  tmpDat[, feat] <- factor(tmpDat[, feat],
+    levels=levels(tmpDat[, feat]),
+    labels=c("UroA", "GU", "Inf", "UroB", "SCCL"))
+  a <- boxplot(tmpDat[, sig] ~ tmpDat[, feat],
+    ylab=paste(sig, "score"),
+    col=color_palettes[["lund_palette3"]][levels(tmpDat[, feat])],
+    cex.axis=axisCex,
+    cex.lab=labCex,
+    cex.names=namesCex, 
+    whisklty = 1,
+    xaxt="n")
+  axis(1,
+    at=1:nlevels(tmpDat[, feat]),
+    labels=rep("", nlevels(tmpDat[, feat])))
+
+    yrange <- par("usr")[4] - par("usr")[3]
+    yunit <- yrange/60
+
+  text(x = 1:nlevels(tmpDat[, feat]), 
+    y = par("usr")[3] - yunit * 4, 
+    labels = levels(tmpDat[, feat]), 
+    srt = -45, 
+    #pos = 1, 
+    xpd = TRUE,
+    adj=0,
+    cex=namesCex)
+  if (plotDots) {
+    points(y=tmpDat[, sig],
+      x=jitter(as.numeric(tmpDat[, feat]), factor=0.7),
+      col=alpha("darkgrey", 0.7),
+      pch=16)
+  }
+
+  pval <- signif(getPfromAnova(tmpDat[, sig], tmpDat[, feat]), 2)
+  print(paste("P for", sig, "by Lund subtype:", pval))
+
+  mtext(a$n,
+    side=3,
+    at=1:nlevels(tmpDat[, feat]),
+    line=0,
+    cex=0.8)
+  
+  mtext(paste(sig, "subtype", sep=", "),
+    side=3,
+    at=3,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+
+}
+```
+
+
+```{r figureS3c}
+feat <- "Lund2"
+
+oldMar <- par()$mar
+par(mar=c(5.5, 4.1, 2, 0))
+
+cols <- color_palettes[["lund_palette3"]]
+tmpDat <- pData(cds2)[!is.na(pData(cds2)$"Immune phenotype"), ]
+tmpDat[, feat] <- factor(tmpDat[, feat],
+  levels=rev(levels(tmpDat[, feat])))
+ic <- table(tmpDat$"Immune phenotype", tmpDat[, feat])
+
+print(prop.table(ic, 1))
+print(prop.table(ic, 2))
+
+pval <- signif(chisq.test(ic)$p.value, 2)
+print(paste("Chisquared P Immunophenotype by Lund:", pval))
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+rownames(ic) <- sub("Basal/SCC-like", "SCCL", rownames(ic))
+rownames(ic) <- sub("iltrated", "", rownames(ic))
+rownames(ic) <- sub("Genomically unstable", "GU", rownames(ic))
+
+b <- barplot(ic,
+  legend.text=rownames(ic),
+  width=0.14,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    #bg=alpha("white", 0.7),
+    #box.col=alpha("white", 0.7),
+    cex=legendCex,
+    x="topright"),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  plot=FALSE)
+xLim <- ( (b[3] - b[2]) / 2 ) + b[3]
+a <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=cols[rownames(ic)],
+  width=0.16,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x="topright"),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.06, 
+  labels = levels(tmpDat$"Immune phenotype"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.75)
+mtext("Lund, phenotype",
+  side=3,
+  at=a[2] + 0.02,
+  line=0.7,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+
+```{r figureS3d}
+feat <- "Lund2"
+
+oldMar <- par()$mar
+par(mar=c(5.5, 4.1, 2, 0))
+
+cols <- color_palettes[["lund_palette3"]]
+tmpDat <- pData(cds2)[!is.na(pData(cds2)$"Immune phenotype"), ]
+tmpDat[, feat] <- factor(tmpDat[, feat],
+  levels=rev(levels(tmpDat[, feat])))
+tmpDat <- tmpDat[tmpDat$"Immune phenotype" == "excluded",]
+tmpDat <- tmpDat[!is.na(tmpDat$binaryResponse), ] 
+
+ic <- table(tmpDat$binaryResponse, tmpDat[, feat])
+
+print(prop.table(ic, 1))
+print(prop.table(ic, 2))
+
+pval <- signif(chisq.test(ic)$p.value, 2)
+print(paste("Chisquared P Response by Lund (Excluded):", pval))
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+rownames(ic) <- sub("Basal/SCC-like", "SCCL", rownames(ic))
+rownames(ic) <- sub("iltrated", "", rownames(ic))
+rownames(ic) <- sub("Genomically unstable", "GU", rownames(ic))
+
+b <- barplot(ic,
+  legend.text=rownames(ic),
+  width=0.14,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x="topright"),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  plot=FALSE)
+xLim <- ( (b[3] - b[2]) / 2 ) + b[3]
+a <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=cols[rownames(ic)],
+  width=0.16,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x="topright"),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.06, 
+  labels = levels(tmpDat$binaryResponse), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.75)
+mtext("Lund, excluded, response",
+  side=3,
+  at=a[2] + 0.02,
+  line=0.7,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+
+```{r figureS3e, fig.width=4}
+# prepare data for heatmap
+sigs <- c("CD 8 T effector", 
+  "gene19", 
+  "DNA replication",
+  ml)
+tmp <- pData(cds2)
+tmp$MKI67 <- m2["MKI67", ]
+tmp <- tmp[!is.na(tmp[ml]) & tmp[ml] > 0, ]
+tmp[, ml] <- log2(tmp[, ml])
+for (sig in sigs) {
+  tmp[, sig] <- scale(tmp[, sig], center=TRUE, scale=TRUE)
+}
+sigs <- c("CD 8 T effector", 
+  "gene19", 
+  "MKI67",
+  "DNA replication",
+  ml)
+sumLund <- t(sapply(sigs, function(sig) {
+  sapply(levels(tmp$Lund2), function(stype) {
+    median(tmp[, sig][tmp$Lund2 == stype], na.rm=TRUE)
+  })
+}))
+sumTCGA <- t(sapply(sigs, function(sig) {
+  sapply(levels(tmp$"TCGA Subtype"), function(stype) {
+    median(tmp[, sig][tmp$"TCGA Subtype" == stype], na.rm=TRUE)
+  })
+}))
+
+rownames(sumLund) <- sub(ml, "TMB", rownames(sumLund))
+rownames(sumLund) <- sub("CD 8 T e", "CD8 T-e", rownames(sumLund))
+rownames(sumLund) <- sub("DNA replication", "DNA rep.", rownames(sumLund))
+rownames(sumLund) <- sub("gene19", "Pan-F-TBRS", rownames(sumLund))
+colnames(sumLund) <- c("UroA", "GU", "Inf", "UroB", "SCCL")
+rownames(sumTCGA) <- sub(ml, "TMB", rownames(sumTCGA))
+rownames(sumTCGA) <- sub("CD 8 T e", "CD8 T-e", rownames(sumTCGA))
+rownames(sumTCGA) <- sub("DNA replication", "DNA rep.", rownames(sumTCGA))
+rownames(sumTCGA) <- sub("gene19", "Pan-F-TBRS", rownames(sumTCGA))
+
+heat_colors2 <- colorRamp2(c(-1.5, 0, 1.5), c("blue", "white", "red"))
+
+# plot heatmap
+ht1 <- Heatmap(sumLund,
+  name="Lund",
+  cluster_rows = FALSE,
+  col=heat_colors2,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "Lund",
+  column_title_gp = gpar(#fontface = "bold", 
+    fontsize=10),
+  show_row_names=FALSE)
+ht2 <- Heatmap(sumTCGA,
+  name="TCGA",
+  cluster_rows = FALSE,
+  col=heat_colors2,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "TCGA",
+  column_title_gp = gpar(#fontface = "bold", 
+    fontsize=10),
+  show_row_names=FALSE)
+
+ht_list = rowAnnotation(labels = 
+   anno_text(rownames(sumLund),
+      which="row", just="right", location=1, gp=gpar(fontsize=9)),
+   width = grobWidth(textGrob(rownames(sumLund)[1]))) + ht1 + ht2 
+
+draw(ht_list, 
+  padding = unit(c(1, 2, 1, 1), "mm"))
+```
+
+
+
+## ED Figure 4
+
+```{r figureS4_stats}
+## linear models for continuos TMB versus Lund/TCGA subtypes
+tmpDat <- pdata[!is.na(pdata[, ml]) & pdata[, ml] != 0,]
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+fit_ml_0 <- lm(tmpDat[, ml] ~ 1)
+fit_ml_l <- lm(tmpDat[, ml] ~ tmpDat$Lund2)
+fit_ml_t <- lm(tmpDat[, ml] ~ tmpDat$"TCGA Subtype")
+print("Lund and TMB")
+print(anova(fit_ml_0, fit_ml_l, test="Chisq"))
+print(summary(fit_ml_l))
+print("TCGA and TMB")
+print(anova(fit_ml_0, fit_ml_t, test="Chisq"))
+print(summary(fit_ml_t))
+
+## wilcoxon test GU versus other Lund subtypes (TMB)
+tmpDat$group <- ifelse(tmpDat$Lund2 == "Genomically unstable", "GU", "Others")
+pval <- signif(wilcox.test(tmpDat[, ml] ~ tmpDat$group)$p.value)
+print(paste("Wilcoxon P TMB GU versus other Lund:", pval))
+
+## T test GU versus other Lund subtypes (TMB)
+tmpDat$group <- ifelse(tmpDat$Lund2 == "Genomically unstable", "GU", "Others")
+pval <- signif(t.test(tmpDat[, ml] ~ tmpDat$group)$p.value)
+print(paste("Test T P TMB GU versus other Lund:", pval))
+
+## wilcoxon test for Luminal II versus other TCGA subtypes (TMB)
+tmpDat$group <- ifelse(tmpDat$"TCGA Subtype" == "II", "II", "Others")
+print(signif(wilcox.test(tmpDat[, ml] ~ tmpDat$group)$p.value))
+print(paste("Wilcoxon P TMB Luminal II versus other TCGA:", pval))
+
+## T test for Luminal II versus other TCGA subtypes (TMB)
+tmpDat$group <- ifelse(tmpDat$"TCGA Subtype" == "II", "II", "Others")
+print(signif(t.test(tmpDat[, ml] ~ tmpDat$group)$p.value))
+print(paste("T Test P TMB Luminal II versus other TCGA:", pval))
+```
+
+```{r figureS4a}
+addDots <- FALSE
+
+oldMar <- par()$mar
+par(mar=c(5.5, 4.1, 2, 2))
+
+tmpDat <- pdata[!is.na(pdata[, ml]),]
+ind <- tmpDat[, ml] > 0
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+## boxplot by Lund
+a <- boxplot(tmpDat[ind, ml] ~ tmpDat$Lund2[ind],
+    ylab="TMB",
+    col=color_palettes$lund_palette3,
+    cex.axis=axisCex,
+    cex.names=namesCex,
+    cex.lab=labCex, 
+    las=2,
+    xaxt="n",
+    yaxt="n", 
+    whisklty = 1)
+axis(1, 
+  at=1:5,
+  labels=FALSE,
+  cex=axisCex)
+axis(2,
+  at=log2(c(1,2,5,10,20,50)),
+  labels=c(1,2,5,10,20,50),
+  cex=axisCex)
+text(x = 1:5, 
+  y = -0.6, 
+  labels = c("UroA", "GU", "Inf", "UroB", "SCCL"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+if (addDots) {
+  points(y=tmpDat[, ml],
+    x=jitter(as.numeric(tmpDat$Lund2), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+} 
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat$Lund2),
+  line=0,
+  cex=0.7)
+mtext("TMB, Lund",
+  side=3,
+  at=3,
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+## boxplot by TCGA
+a <- boxplot(tmpDat[ind, ml] ~ tmpDat$"TCGA Subtype"[ind],
+    ylab="TMB",
+    col=color_palettes$tcga_palette,
+    cex.main=0.6,
+    cex.axis=axisCex,
+    cex.names=namesCex,
+    cex.lab=labCex, 
+    las=2,
+    xaxt="n", 
+    yaxt="n",
+    whisklty = 1)
+axis(1, 
+  at=1:5,
+  labels=FALSE)
+axis(2,
+  at=log2(c(1,2,5,10,20,50)),
+  labels=c(1,2,5,10,20,50),
+  cex=axisCex)
+text(x = 1:4, 
+  y = -0.6, 
+  labels = levels(tmpDat$"TCGA Subtype"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+if (addDots) {
+  points(y=tmpDat[, ml],
+    x=jitter(as.numeric(tmpDat$"TCGA Subtype"), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+} 
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat$"TCGA Subtype"),
+  line=0,
+  cex=0.7)
+mtext("TMB, TCGA",
+  side=3,
+  at=2.5,
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+```{r figureS4b, fig.width=4}
+oldMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+tmpDat <- pdata[!is.na(pdata[, ml]),]
+tmpDat$group <- ifelse(tmpDat[, ml] >= median(tmpDat[, ml]), "High", "Low")
+
+## barplots for low/high TMB by Lund
+ic <- table(tmpDat$Lund2, tmpDat$group)
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+bWidth <- 0.08
+b <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=c("black", "darkgrey"),
+  width=bWidth,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    #inset=c(-2, 0),
+    cex=legendCex,
+    y=1,
+    x=xLim),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  plot=FALSE)
+xLim <- b[1] * 2 + b[5] + bWidth * 2.2
+a <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=c("black", "darkgrey"),
+  width=bWidth,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    y=1,
+    x=xLim),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.07, 
+  labels = c("UroA", "GU", "Inf", "UroB", "SCCL"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.6)
+mtext("TMB, Lund",
+  side=3,
+  at=a[3],
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+
+ic <- table(tmpDat$"TCGA Subtype", tmpDat$group)
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+bWidth <- 0.08
+b <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=c("black", "darkgrey"),
+  width=0.1,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    y=1,
+    x=xLim),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  plot=FALSE)
+xLim <- b[1] * 2 + b[4] + bWidth * 2
+a <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=c("black", "darkgrey"),
+  width=0.1,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    y=1,
+    x=xLim),
+  xaxt="n",
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.07, 
+  labels = levels(tmpDat$"TCGA Subtype"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.6)
+mtext("TMB, TCGA",
+  side=3,
+  at=a[3],
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+
+```{r figureS4d, fig.width=4}
+## prepare data
+sigs <- c("CD 8 T effector", 
+  "gene19", 
+  ml)
+tmp <- pData(cds2)
+tmp <- tmp[tmp$"TCGA Subtype" == "II" | tmp$Lund2 == "Genomically unstable", ]
+tmp <- tmp[!is.na(tmp[, ml]) & tmp[, ml] > 0, ]
+tmp[, ml] <- log2(tmp[, ml])
+for (sig in sigs) {
+  tmp[, sig] <- scale(tmp[, sig], center=TRUE, scale=TRUE)
+}
+tmp$group <- ifelse(tmp$"TCGA Subtype" == "II" & tmp$Lund2 == "Genomically unstable", "GU and II", 
+  ifelse(tmp$Lund2 == "Genomically unstable", "GU only", "II only"))
+tmp$group <- factor(tmp$group,
+  levels=c("GU only", "GU and II", "II only"))
+nSamples <- sapply(levels(tmp$group), function(gr) {
+  sum(tmp$group == gr)
+})
+sumSubtype <- t(sapply(sigs, function(sig) {
+  sapply(levels(tmp$group), function(stype) {
+    median(tmp[, sig][tmp$group == stype], na.rm=TRUE)
+  })
+}))
+colnames(sumSubtype) <- paste0(colnames(sumSubtype), " (", nSamples, ")")
+rownames(sumSubtype) <- sub("CD 8 T e", "CD8 T-e", rownames(sumSubtype))
+rownames(sumSubtype) <- sub("gene19", "Pan-F-TBRS", rownames(sumSubtype))
+rownames(sumSubtype) <- sub(ml, "TMB", rownames(sumSubtype))
+
+## prepare heatmap
+colNames <- colnames(sumSubtype)
+ha_rot_cn = HeatmapAnnotation(text = anno_text(colNames, 
+  rot = -45, 
+  just = "left" 
+  #,offset = unit(7, "mm")
+  ))
+heat_colors2 <- colorRamp2(c(-1, 0, 1), c("blue", "white", "red"))
+
+ht4 <- Heatmap(sumSubtype,
+  name="score",
+  cluster_rows = FALSE,
+  col=heat_colors2,
+  color_space = "RGB",
+  cluster_columns = FALSE,
+  show_column_names = FALSE,
+  show_row_names = FALSE,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "GU vs. luminal II",
+  column_title_gp = gpar(#fontface = "bold", 
+    fontsize=10),
+  bottom_annotation=ha_rot_cn)
+
+## plot heatmap with decorations
+ht_list = rowAnnotation(labels = 
+   anno_text(rownames(sumSubtype)[1:3],
+      which="row", just="right", location=1, gp=gpar(fontsize=9)),
+   width = grobWidth(textGrob(rownames(sumSubtype)[1]))) + ht4 
+
+draw(ht_list, 
+  padding = unit(c(20, 2, 1, 1), "mm"))
+```
+
+
+```{r figureS4e}
+orgMar <- par()$mar
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+tmpDat <- pData(cds2)
+tmpDat <- tmpDat[tmpDat$"TCGA Subtype" == "II" | tmpDat$Lund2 == "Genomically unstable", ]
+tmpDat <- tmpDat[!is.na(tmpDat$binaryResponse), ]
+
+tmpDat$group <- ifelse(tmpDat$"TCGA Subtype" == "II" & tmpDat$Lund2 == "Genomically unstable", "GU and II", 
+  ifelse(tmpDat$Lund2 == "Genomically unstable", "GU only", "II only"))
+tmpDat$group <- factor(tmpDat$group,
+  levels=c("GU only", "GU and II", "II only"))
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+nSamples <- sapply(levels(tmpDat$group), function(gr) {
+  sum(tmpDat$group == gr)
+})
+
+d <- table(tmpDat$group, 
+  tmpDat[, "binaryResponse"])
+pval1 <- signif(fisher.test(d)$p.value, 2)
+print(paste("Fisher P for association of response rate with GU/II (both and exclusive):", pval1)) 
+
+d <- table(tmpDat$group, tmpDat[, irf])
+ic <- prop.table(t(d), 
+  margin=2)
+a <- barplot(ic,
+  ylab="fraction of patients",
+  legend.text=rownames(ic),
+  col=color_palettes$irf_palette[rownames(ic)],
+  width=0.16,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+    cex=legendCex,
+    x="topright"),
+  xaxt="n")
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  par("usr")[3] - 0.07, 
+  labels = colnames(ic), 
+  srt = -45, 
+  #pos = 1, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.7)
+mtext("Response, subgroup",
+  side=3,
+  at=a[2],
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+par(mar=orgMar)
+```
+
+
+
+
+<br>
+<br>
+
+
+#### Session Info
+
+```{r sessioninfo, echo=FALSE, results="asis"} 
+as.character(Sys.time())
+sessionInfo()
+```

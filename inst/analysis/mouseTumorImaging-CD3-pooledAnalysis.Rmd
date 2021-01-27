@@ -1,0 +1,104 @@
+---
+title: "Statistical analysis of immune cell infiltration"
+author: "Danny Sheinson"
+date: "July 24, 2017"
+output: html_document
+---
+
+```{r echo = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+```{r}
+# Load R packages
+library(plyr)
+library(reshape2)
+library(ggplot2)
+library(spatstat)
+library(lsmeans)
+library(DT)
+
+
+# Load hyperframe of ppp objects, calculate nearest distances from tumor border over grid of pixels over entire tumor ROI, and calculate nearest distance between each immune cell and tumor border
+data("dat19")
+dat19$d1 <- with(dat19, distmap(window, invert=TRUE))
+dat19$b <- with(dat19, edges(window))
+dat19$m <- with(dat19, nncross(y, b))
+
+data("dat57")
+dat57$d1 <- with(dat57, distmap(window, invert=TRUE))
+dat57$b <- with(dat57, edges(window))
+dat57$m <- with(dat57, nncross(y, b))
+
+data("dat25")
+dat25$d1 <- with(dat25, distmap(window, invert=TRUE))
+dat25$b <- with(dat25, edges(window))
+dat25$m <- with(dat25, nncross(y, b))
+
+# Extract tumor areas and number of cells
+n.points19 <- with(dat19, npoints(y))
+areas19 <- with(dat19, area(window))
+n.points57 <- with(dat57, npoints(y))
+areas57 <- with(dat57, area(window))
+n.points25 <- with(dat25, npoints(y))
+areas25 <- with(dat25, area(window))
+
+# Calculate mean distance of cells to tumor border
+mean.dist19 <- ldply(with(dat19, data.frame(mean.d = mean(m[,1]), mean.d.n = mean(m[,1]) / max(d1$v))), function(l) l)
+mean.dist57 <- ldply(with(dat57, data.frame(mean.d = mean(m[,1]), mean.d.n = mean(m[,1]) / max(d1$v))), function(l) l)
+mean.dist25 <- ldply(with(dat25, data.frame(mean.d = mean(m[,1]), mean.d.n = mean(m[,1]) / max(d1$v))), function(l) l)
+
+# Summary data frame
+sum.dat19 <- data.frame(dat19, n.points=n.points19, areas=areas19, mean.dist19[,-1])
+sum.dat57 <- data.frame(dat57, n.points=n.points57, areas=areas57, mean.dist57[,-1])
+sum.dat25 <- data.frame(dat25, n.points=n.points25, areas=areas25, mean.dist25[,-1])
+sum.dat19$Treatment <- factor(sum.dat19$Group, levels = 1:4, labels = c("Vehicle","aPDL1","aTGFb (1D11)","aPDL1+aTGFb (1D11)"))
+sum.dat57$Treatment <- factor(sum.dat57$Group, levels = 1:6, labels = c("Vehicle","aPDL1","aTGFb (1D11)","aTGFb (2G7)","aPDL1+aTGFb (1D11)","aPDL1+aTGFb (2G7)"))
+sum.dat25$Treatment <- factor(sum.dat25$Group, levels = 1:5, labels = c("Vehicle","aPDL1","aTGFb (1D11)","aPDL1+aTGFb (1D11)","aOX40"))
+sum.dat <- rbind(data.frame(Study = "666", sum.dat19),
+                 data.frame(Study = "1430", sum.dat57),
+                 data.frame(Study = "1436", sum.dat25))
+
+# Export animal-level summary statistics 
+#write.csv(sum.dat, file = paste("./mice-summaryPoints-pooled-CD3-",Sys.Date(),".csv",sep=""), row.names=FALSE)
+datatable(sum.dat,
+  rownames=FALSE)
+```
+
+```{r}
+# Fit models to data
+sum.dat2 <- sum.dat[-which(sum.dat$Treatment %in% c("aTGFb (2G7)","aPDL1+aTGFb (2G7)","aOX40")),]
+fit.sum <- lm(mean.d.n ~ Treatment + poly(areas) + n.points, data = sum.dat2)
+
+# Calculate covariate-adjsuted group means and run pairwise tests
+fit.lsm <- lsmeans(fit.sum, ~ Treatment)
+contr <- contrast(fit.lsm, "tukey")
+dat.lsm <- summary(fit.lsm)
+dat.contr <- summary(contr)
+
+# Print and export results
+out <- data.frame(Treatment = dat.lsm$Treatment, Mean = dat.lsm$lsmean,
+                  lower.CL = dat.lsm$lower.CL, upper.CL = dat.lsm$upper.CL,
+                  Diff.ctrl = c(NA, dat.contr$estimate[1:3]), Diff.apdl1 = c(NA, NA, dat.contr$estimate[4:5]),
+                  p.value.ctrl=c(NA, dat.contr$p.value[1:3]), p.value.apdl1 = c(NA, NA, dat.contr$p.value[4:5]))
+#write.csv(out, file = paste("./mice-summary-meanDist-pooled-CD3-allCov-",Sys.Date(),".csv",sep=""), row.names=FALSE)
+datatable(out,
+  rownames=FALSE)
+```
+
+```{r fig.cap = "Pooled Analysis of mouse tumor immune cell infiltration", fig.width=8, fig.height=6}
+# Plot results
+out$Sig <- NA; out$Sig2 <- NA
+out$Sig[which(out$p.value.ctrl < 0.05)] <- (12/11) * max(sum.dat$mean.d.n)
+out$Sig2[which(out$p.value.apdl1 < 0.05)] <- (12/11) * max(sum.dat$mean.d.n)
+out2 <- melt(out[,c("Treatment","Sig","Sig2")], id = "Treatment", variable.name = "Sigtype", value.name = "Sigplot")
+p1 <- ggplot(sum.dat2, aes(x=Treatment, y=100*mean.d.n)) + 
+  geom_point(aes(color=Study, group=Study), position=position_jitterdodge(dodge.width=0.75, jitter.width=0.30))
+p2 <- geom_errorbar(data = out, aes(ymin=100*Mean, ymax=100*Mean, y=NULL))
+p3 <- geom_errorbar(data = out, aes(ymin=100*lower.CL, y=NULL, ymax=100*upper.CL), linetype = "dashed")
+p4 <- geom_point(data = out2, aes(y = 100*Sigplot, shape = Sigtype), color = "red", size = 4, position = position_dodge(width = 0.5))
+g <- p1 + p2 + p3 + p4 + scale_shape_manual(name = "Comparison", values =c(8,4), labels = c("Diff. ctrl", "Diff. aPDL1")) +
+  labs(x="Treatment Group", y="Mean % infiltration", title="Pooled Analysis - 666, 1430, 1436") +
+  theme_bw() + theme(strip.text.x=element_text(size=16),strip.text.y=element_text(size=16),plot.title=element_text(size=20),axis.title=element_text(size = 15),axis.text=element_text(size=10),axis.text.x=element_text(angle=-45,hjust=0,vjust=1),legend.title=element_text(size=15),legend.text=element_text(size=12))
+g
+```

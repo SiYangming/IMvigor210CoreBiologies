@@ -1,0 +1,118 @@
+---
+title: "TGF-b attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells - Figure 4 panels k,l; and Extended Data Figure A11 panels f,g,h."
+author: Yasin Senbabaoglu
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    fig_caption: yes
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+```
+
+```{r options, echo=FALSE}
+opts_chunk$set(dev='png',
+               fig.retina = 2,
+               fig.align='center',
+               fig.pos='htbp',
+               echo = FALSE,
+               include = TRUE,
+               collapse = TRUE,
+               cache = FALSE,
+               warning = FALSE,
+               message = FALSE,
+               comment = NA
+               )
+```
+
+```{r libraries}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(edgeR)
+```
+
+## Overview
+EMT6 tumors treated with vehicle, aPDL1, and aTGFb (1D11), single agent or in combination. 8 samples per group => 32 samples in total. 
+
+### Treatment groups
+- Mu IgG1 anti-gp120
+- Mu IgG1 anti-PDL1 
+- Mu IgG1 anti-TGFb (1D11)
+- Mu IgG1 anti-PDL1 + Mu IgG1 anti-TGFb (1D11)
+
+
+
+## Scores
+
+```{r read.data}
+x = readRDS(system.file("mouse", "scores.rds", package="IMvigor210CoreBiologies"))
+pheno = readRDS(system.file("mouse", "pheno.rds", package="IMvigor210CoreBiologies"))
+scores = tibble::as_tibble(t(x)) 
+
+colnames(scores) = c("Pan-F-TBRS","Teff","Ma-TBRS","T-TBRS","EMT1","EMT2","EMT3")
+scores = scores %>% dplyr::select(Teff,everything()) %>% 
+  mutate(`Teff-FTBRS` = Teff - `Pan-F-TBRS`) %>%
+  mutate(Treatment = pheno$Drug) %>%
+  dplyr::select(Treatment,everything())
+scoresMelt = melt(scores)
+```
+
+```{r plot1,results='asis',fig.align='center',fig.width=8}
+
+sname = colnames(scores)[-1]
+
+for(i in 1:length(sname)){
+  dat <- filter(scoresMelt,variable == sname[i])
+  
+  pvec = rep(NA,6)
+  tmp <- filter(dat,Treatment %in% c("Vehicle","1D11"))
+  pvec[1] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+    tmp <- filter(dat,Treatment %in% c("Vehicle","aPDL1"))
+  pvec[2] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+    tmp <- filter(dat,Treatment %in% c("Vehicle","1D11+aPDL1"))
+  pvec[3] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+    tmp <- filter(dat,Treatment %in% c("1D11","aPDL1"))
+  pvec[4] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+  tmp <- filter(dat,Treatment %in% c("1D11","1D11+aPDL1"))
+  pvec[5] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+    tmp <- filter(dat,Treatment %in% c("aPDL1","1D11+aPDL1"))
+  pvec[6] = signif(wilcox.test(value ~ Treatment, data = tmp)$p.value,3)
+  
+  
+  cat("\n###",sname[i],"\n")
+  dat$Treatment = factor(dat$Treatment,levels = c("Vehicle","aPDL1","1D11","1D11+aPDL1"))
+  g <- ggplot(data=dat,aes(x=Treatment,y=value,fill=Treatment)) + 
+    geom_boxplot() + theme_bw() + labs(x = "", y = "Score")
+  print(g)
+  
+  cat("Vehicle vs 1D11 p-value = ",pvec[1],"\n\n")
+    cat("Vehicle vs aPDL1 p-value = ",pvec[2],"\n\n")
+      cat("Vehicle vs 1D11+aPDL1 p-value = ",pvec[3],"\n\n")
+        cat("1D11 vs aPDL1 p-value = ",pvec[4],"\n\n")
+          cat("1D11 vs 1D11+aPDL1 p-value = ",pvec[5],"\n\n")
+            cat("aPDL1 vs 1D11+aPDL1 p-value = ",pvec[6],"\n")
+  cat("\n")
+}
+
+```
+
+
+
+
+
+
+
+
+

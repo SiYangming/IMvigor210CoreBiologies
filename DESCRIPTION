@@ -1,11 +1,21 @@
 Package: IMvigor210CoreBiologies
 Type: Package
-Title: What the Package Does (Title Case)
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Title: Data processing and analysis code for the manuscript Mariathasan
+        et al, TGF-b attenuates tumor response to PD-L1 blockade by
+        contributing to exclusion of T cells
+Version: 2.0.0
+Date: 2021-01-27
+Author: Dorothee Nickles <nickles.dorothee@gene.com>, Richard Bourgon <bourgon.richard@gene.com>
+Maintainer: Dorothee Nickles <nickles.dorothee@gene.com>
+Description: 
+	Data and software R package enabling the reproduction of results presented in the manuscript.
+Depends: R (>= 3.5), Biobase
+Imports: biomaRt, circlize, ComplexHeatmap, corrplot, DESeq2, tibble,
+        dplyr, DT, edgeR, ggplot2, graphics, limma, lsmeans, methods,
+        reshape2, spatstat, stats, survival, plyr
+Suggests: roxygen2
+License: file LICENSE
+RoxygenNote: 6.0.1.9000
 Encoding: UTF-8
-LazyData: true
+NeedsCompilation: no
+Packaged: 2019-02-12 04:47:28 UTC; nicklesd

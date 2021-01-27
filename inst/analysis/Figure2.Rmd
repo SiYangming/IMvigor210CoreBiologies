@@ -1,0 +1,1374 @@
+---
+title: TGF-b attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells - Figure 2 and related data
+author: Dorothee Nickles
+date: "`r format(Sys.time())`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cosmo
+    code_folding: hide
+---
+
+```{r options, echo=FALSE}
+options(replace.assign=TRUE, width=90)
+opts_chunk$set(dev=c('png'), fig.width=3.5, fig.height=3.5, out.width='800px', fig.align='center', fig.pos='htbp', fig.retina=FALSE, dev.args=list(pointsize=11), cache=FALSE, dpi=300)
+```
+
+```{r libraries, cache=FALSE, message=FALSE}
+## libraries
+library(DESeq2)
+library(limma)
+library(edgeR)
+library(corrplot)
+#library(RColorBrewer)
+```
+
+```{r settings}
+# gene sets
+data(human_gene_signatures)
+ind_genes <- human_gene_signatures
+
+# colors
+data(color_palettes)
+
+# variables
+goi <- names(ind_genes)
+ml <- "FMOne mutation burden per MB"
+
+# font sizes
+labCex <- 0.9
+namesCex <- 0.9
+legendCex <- 0.9
+titleCex <- 1
+axisCex <- 0.9
+titleF <- 1
+```
+
+```{r prepare_biomarker_data}
+# load
+data(fmone)
+data(cds)
+cds2 <- cds
+
+# normalize 
+geneNames <- setNames(fData(cds2)$Symbol, 
+  as.character(rownames(fData(cds2))))
+voomD <- filterNvoom(counts(cds2),
+  minSamples=ncol(counts(cds2))/10,
+  minCpm=0.25)
+m <- voomD$E
+m <- t(scale( t( m ),
+  center=TRUE, 
+  scale=TRUE)
+)
+# add signature scores to pData()
+m2 <- m
+rownames(m2) <- geneNames[rownames(m2)]
+
+# calculate gene set scores
+for (sig in goi) {
+  pData(cds2)[, sig] <- NA
+  genes <- ind_genes[[sig]]
+  genes <- genes[genes %in% rownames(m2)]
+  tmp <- m2[genes, , drop=FALSE]
+  pData(cds2)[, sig] <- gsScore(tmp)
+}
+```
+
+# Figure 2b
+
+```{r figure2b}
+tmpDat <- pData(cds2)[! is.na(pData(cds2)$"Immune phenotype"),]
+citPie <- prop.table(table(tmpDat$"Immune phenotype"))
+print(citPie)
+
+pie(citPie,
+  col=color_palettes[["cit_palette"]])
+```
+
+
+<br>
+
+# Figure 2c, d and e
+
+```{r figure2cde}
+sigs <- c("CD 8 T effector", "gene19")
+resp <- "binaryResponse"
+feat <- "Immune phenotype"
+
+# subset data
+dat <- pData(cds2)[!is.na(pData(cds2)[, resp]) & !is.na(pData(cds2)[, feat]), ]
+nSamples <- table(dat[, resp], dat$"Immune phenotype")
+
+
+for (sig in sigs) {
+
+  # calculate statistics
+  anovaP <- getPfromAnova(dat[, sig], dat[, feat])
+  print(paste("Likelihood ratio test P for", sig, "by immune phenotype:", anovaP))
+
+  pvals2 <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$"Immune phenotype" == cit,]
+    pvals2 <- c(pvals2,
+      signif(wilcox.test(tmp[, sig] ~ tmp[, resp])$p.value, 2))  
+  }
+  print("Wilcoxon p-values (unadjusted)")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+
+  pvals2 <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$"Immune phenotype" == cit,]
+    pvals2 <- c(pvals2,
+      signif(t.test(tmp[, sig] ~ tmp[, resp])$p.value, 2))  
+  }
+
+  print("T test p-values (unadjusted)")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+
+  pvals2 <- ifelse(pvals2 * 3 > 1, 1, pvals2 * 3)
+  print("Adjusted t test p-values")
+  print(setNames(pvals2, 
+    levels(pData(cds2)[, feat])))
+  pvals3 <- pLevel(pvals2)
+
+  # plot data
+  par(mar=c(5.5, 4.1, 2, 2))
+
+  tmp <- lapply(levels(pData(cds2)[, feat]), function(cit) {
+    if (cit == "inflamed") {
+      list("CR/PR"=dat[, sig][dat[, resp] == "CR/PR" & dat$"Immune phenotype" == cit],
+        "SD/PD"=dat[, sig][dat[, resp] == "SD/PD" & dat$"Immune phenotype" == cit]) 
+    } else {
+      list("CR/PR"=dat[, sig][dat[, resp] == "CR/PR" & dat$"Immune phenotype" == cit],
+        "SD/PD"=dat[, sig][dat[, resp] == "SD/PD" & dat$"Immune phenotype" == cit],
+        y=numeric(0))
+    }
+  })
+
+    if (sig == "gene19") {
+      sig <- "Pan-F-TBRS"
+    } 
+    if (sig == "CD 8 T effector") {
+      sig <- "T-effector"
+    }
+
+  at.x <- seq(1, by=0.5, length.out=8)
+  a <- boxplot(unlist(tmp, recursive=FALSE),
+    ylab=paste(sig, "score"),
+    col=color_palettes$response_palette[c(1,2,1,1,2,1,1,2)],
+    cex.axis=axisCex,
+    cex.lab=labCex,
+    cex.names=namesCex, 
+    whisklty = 1,
+    ylim=c(-7,7),
+    xaxt="n",
+    at=at.x,
+    boxwex=0.5)
+  axis(1,
+    at=c(1,1.5,2.5,3,4,4.5),
+    labels=rep("", 6))
+  mtext(levels(pData(cds2)$"Immune phenotype"),
+    side=1,
+    at=c(1.25, 2.75, 4.25),
+    line=3.1,
+    cex=namesCex)
+  text(x = c(1,1.5,2.5,3,4,4.5), 
+    y = par("usr")[3] - 0.7 , 
+    labels = rep(c("CR/PR", "SD/PD"), 3), 
+    srt = -45, 
+    xpd = TRUE,
+    adj=0,
+    cex=namesCex)
+  mtext(nSamples,
+    side=3,
+    at=c(1,1.5,2.5,3,4,4.5),
+    line=0,
+    cex=0.8)
+  mtext(paste0("Response, ", sig, ", phenotype"),
+    side=3,
+    at=2.7,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+
+  yrange <- par("usr")[4] - par("usr")[3]
+  yunit <- yrange/35
+  segments(x0=1,
+    x1=1.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=2.5,
+    x1=3,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=4,
+    x1=4.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  text(y=par("usr")[4] - yunit,
+    x=c(1.25, 2.75, 4.25),
+    labels=pvals3,
+    cex=axisCex) 
+
+}
+
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, ml]), ]
+tmpDat <- tmpDat[tmpDat[, ml] > 0, ]
+
+tmpDat <- tmpDat[! is.na(tmpDat[, feat]),]
+
+sig <- ml
+
+  feat <- "Immune phenotype"
+  resp <- "binaryResponse"
+
+  dat <- data.frame("Signature"= log2(tmpDat[, sig]), 
+    "Immunophenotype"= tmpDat[, feat], 
+    "Response"= tmpDat[, resp],
+    check.names=FALSE)
+  dat <- dat[!is.na(dat$Response) & !is.na(dat$Immunophenotype), ]
+  nSamples <- table(dat$Response, dat$Immunophenotype)
+
+  pvals2 <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$Immunophenotype == cit,]
+    pvals2 <- c(pvals2,
+      signif(wilcox.test(tmp$Signature ~ tmp$Response)$p.value, 2)) 
+  }
+  
+  print("Wilcoxon p-values (unadjusted)")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+
+  pvals2 <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$Immunophenotype == cit,]
+    pvals2 <- c(pvals2,
+      signif(t.test(tmp$Signature ~ tmp$Response)$p.value, 2))  
+  }
+
+  print("T test p-values (unadjusted)")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+
+  pvals2 <- ifelse(pvals2 * 3 > 1, 1, pvals2 * 3)
+  print("Adjusted t test p-values")
+  print(setNames(pvals2, 
+    levels(pData(cds2)[, feat])))
+  pvals3 <- ifelse(pvals2 < 0.001, "***",
+    ifelse(pvals2 < 0.01, "**",
+      ifelse(pvals2 < 0.05, "*",
+        ifelse(pvals2 < 0.1, ".", "n.s."))))
+
+  tmp <- lapply(levels(pData(cds2)[, feat]), function(cit) {
+    if (cit == "inflamed") {
+      list("CR/PR"=dat$Signature[dat$Response == "CR/PR" & dat$Immunophenotype == cit],
+        "SD/PD"=dat$Signature[dat$Response == "SD/PD" & dat$Immunophenotype == cit]) 
+    } else {
+      list("CR/PR"=dat$Signature[dat$Response == "CR/PR" & dat$Immunophenotype == cit],
+        "SD/PD"=dat$Signature[dat$Response == "SD/PD" & dat$Immunophenotype == cit],
+        y=NA)
+    }
+  })
+
+  par(mar=c(5.5, 4.1, 2, 2))
+
+  at.x <- seq(1, by=0.5, length.out=8)
+    a <- boxplot(unlist(tmp, recursive=FALSE),
+    ylab="TMB",
+    #xlab=feat,
+    col=color_palettes[["response_palette"]][c(1,2,1,1,2,1,1,2)],
+    cex.axis=axisCex,
+    cex.lab=labCex,
+    cex.names=namesCex, 
+    whisklty = 1,
+    ylim=c(0,log2(80)),
+    xaxt="n",
+    at=at.x,
+    boxwex=0.5,
+    yaxt="n")
+    axis(2,
+      at=log2(c(1,2,5,10,20,50)),
+      labels=c(1,2,5,10,20,50),
+      cex=axisCex)
+  axis(1,
+    at=c(1,1.5,2.5,3,4,4.5),
+    labels=rep("", 6))
+  mtext(levels(pData(cds2)[, feat]),
+    side=1,
+    at=c(1.25, 2.75, 4.25),
+    line=3.1,
+    cex=namesCex)
+  text(x = c(1,1.5,2.5,3,4,4.5), 
+    y = par("usr")[3] - 0.35 , 
+    labels = rep(c("CR/PR", "SD/PD"), 3), 
+    srt = -45, 
+    xpd = TRUE,
+    adj=0,
+    cex=namesCex)
+  mtext(nSamples,
+    side=3,
+    at=c(1,1.5,2.5,3,4,4.5),
+    line=0,
+    cex=0.8)
+  mtext("Response, TMB, phenotype",
+    side=3,
+    at=2.7,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+
+  yrange <- par("usr")[4] - par("usr")[3]
+  yunit <- yrange/35
+  segments(x0=1,
+    x1=1.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=2.5,
+    x1=3,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=4,
+    x1=4.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  text(y=ifelse(pvals3 == "n.s.", par("usr")[4] - yunit , par("usr")[4] - yunit),
+    x=c(1.25, 2.75, 4.25),
+    labels=pvals3,
+    cex=axisCex) 
+```
+
+<br>
+
+# Figure 2f
+
+```{r figure2f, fig.width=9}
+goi <- c("CD 8 T effector",
+  "gene19")
+
+resp <- "binaryResponse"
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, resp]), ]
+tmpDat[, resp] <- droplevels(tmpDat[, resp])
+for (sig in goi) {
+  tmpDat[, sig] <- scale(tmpDat[, sig], center=TRUE, scale=TRUE) 
+}
+
+tmpDat2 <- tmpDat[!is.na(tmpDat[, ml]) & tmpDat[, ml] > 0, ]
+tmpDat2[, ml] <- log2(tmpDat2[, ml])
+
+tmpDat <- tmpDat2[! is.na(tmpDat2[, "Immune phenotype"]), ]
+
+tmpDat2$isExcluded <- ifelse(tmpDat2[, "Immune phenotype"] == "excluded",
+  "Yes", "No")
+tmpDat2$isExcluded <- factor(tmpDat2$isExcluded,
+  levels=c("No", "Yes"))
+
+
+allDat <- lapply(c("desert", "excluded", "inflamed"), function(p) {
+
+    tmpDat <- tmpDat2[tmpDat2[, "Immune phenotype"] %in% p, ]
+
+  varExp1 <- t(sapply(c(goi, ml), function(sig) {
+    fit <- glm(tmpDat[, resp] ~ 
+      tmpDat[, sig],
+      family="binomial")
+    fit$null.deviance - fit$deviance
+  }))
+  varExp1 <- setNames(varExp1[1,],
+    colnames(varExp1))
+
+  fit2.2 <- glm(tmpDat[, resp] ~ 
+      tmpDat[, "CD 8 T effector"] + tmpDat[, "gene19"],
+      family="binomial")
+  varExp2.2 <- fit2.2$null.deviance - fit2.2$deviance
+
+  fit2.4 <- glm(tmpDat[, resp] ~ 
+      tmpDat[, ml] + tmpDat[, "CD 8 T effector"], 
+      family="binomial")
+  varExp2.4 <- fit2.4$null.deviance - fit2.4$deviance
+
+  fit2.6 <- glm(tmpDat[, resp] ~ 
+      tmpDat[, ml] * tmpDat[, "gene19"], 
+      family="binomial")
+  varExp2.6 <- fit2.6$null.deviance - fit2.6$deviance
+
+  varExp2 <- c(varExp2.2, varExp2.4, varExp2.6)
+  names(varExp2) <- c("Teff,TBRS", "Teff,TMB", "TBRS,TMB")
+  #varExp2 <- sort(varExp2)
+
+  #fit3 <- glm(tmpDat[, resp] ~ 
+  #    tmpDat[, "CD 8 T effector"] + tmpDat[, "gene19"] + tmpDat[, ml],
+  #    family="binomial")
+  #varExp3 <- fit3$null.deviance - fit3$deviance
+
+  fit3.2 <- glm(tmpDat[, resp] ~ 
+      tmpDat[, "CD 8 T effector"] + tmpDat[, ml] + tmpDat[, "gene19"] +
+      tmpDat[, ml]:tmpDat[, "gene19"],
+      family="binomial")
+  varExp3.2 <- fit3.2$null.deviance - fit3.2$deviance
+  names(varExp3.2) <- "Teff,TBRS,TMB"
+
+  allVars <- c(varExp1, 
+      NA, 
+      varExp2, 
+      NA, 
+      varExp3.2)
+  #allVars <- sort(allVars)
+  names(allVars) <- sub("CD 8 T effector", "Teff", names(allVars))
+  names(allVars) <- sub("gene19", "TBRS", names(allVars))
+  names(allVars) <- sub(ml, "TMB", names(allVars))
+
+  ## repeat previous model to fit displayed data
+  fit_teff_0 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"],
+    family="binomial")
+  fit_tgfb_0 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "gene19"],
+    family="binomial")
+  fit_teff_tgfb <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] +
+    tmpDat[, "gene19"],
+    family="binomial")
+
+  fit_tt_0 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] +
+    tmpDat[, "gene19"],
+    family="binomial")
+  fit_ml_0 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, ml],
+    family="binomial")
+  fit_tt_ml <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] +
+    tmpDat[, "gene19"] +
+    tmpDat[, ml],
+    family="binomial")
+  fit_tgfb_ml <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "gene19"] +
+    tmpDat[, ml],
+    family="binomial")
+  fit_tgfb_ml_int <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "gene19"] *
+    tmpDat[, ml],
+    family="binomial")
+  fit_teff_ml <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] +
+    tmpDat[, ml],
+    family="binomial")
+  fit_core_int <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] +
+    tmpDat[, ml] +
+    tmpDat[, "gene19"] +
+    tmpDat[, "gene19"]:tmpDat[, ml],
+    family="binomial")
+
+  # likelihood ratio test Ps for display
+  tgfbP <- signif(anova(fit_tgfb_0, fit_teff_tgfb, test="Chisq")$"Pr(>Chi)"[2], 2)
+  teffP <- signif(anova(fit_teff_0, fit_teff_tgfb, test="Chisq")$"Pr(>Chi)"[2], 2)
+  ttP <- signif(anova(fit_tt_0, fit_tt_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+  mlP <- signif(anova(fit_ml_0, fit_tt_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  teffmlP <- signif(anova(fit_ml_0, fit_teff_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+  teffmlP2 <- signif(anova(fit_teff_0, fit_teff_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  tgfbmlP <- signif(anova(fit_ml_0, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+  tgfbmlP2 <- signif(anova(fit_tgfb_0, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+  tgfbmlP3 <- signif(anova(fit_tgfb_ml, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  tgfbmlP_int <- signif(anova(fit_tgfb_0, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+  tgfbmlP_int2 <- signif(anova(fit_ml_0, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  tt_tgfb_mlP <- signif(anova(fit_tt_ml, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  core_interaction <- signif(anova(fit_tt_ml, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  core_tt <- signif(anova(fit_tt_0, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+  core_tgfbml <- signif(anova(fit_tgfb_ml_int, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+  core_teffml <- signif(anova(fit_teff_ml, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+  pvals <- list(tgfbP=tgfbP,
+    teffP=teffP,
+    ttP=ttP,
+    mlP=mlP,
+    teffmlP=teffmlP,
+    teffmlP2=teffmlP2,
+    tgfbmlP=tgfbmlP,
+    tgfbmlP2=tgfbmlP2,
+    tgfbmlP3=tgfbmlP3,
+    tt_tgfb_mlP=tt_tgfb_mlP,
+    core_int=core_interaction,
+    tgfbmlP_int=tgfbmlP_int,
+    tgfbmlP_int2=tgfbmlP_int2,
+    core_tt=core_tt,
+    core_tgfbml=core_tgfbml,
+    core_teffml=core_teffml)
+  pvals2 <- pvals
+  pvals <- lapply(pvals, function(x) {
+    ifelse(x < 0.001, "***",
+    ifelse(x < 0.01, "**",
+      ifelse(x < 0.05, "*",
+        ifelse(x < 0.1, ".", NA))))
+  })
+
+  return(list(variances=allVars,
+    pvalues=pvals,
+    rawP=pvals2))
+
+})
+names(allDat) <- c("desert", "excluded", "inflamed")
+
+full <- glm(tmpDat2[, resp] ~ 
+    tmpDat2[, "CD 8 T effector"] + tmpDat2[, ml] + tmpDat2[, "gene19"] +
+    tmpDat2[, ml]:tmpDat2[, "gene19"] +
+    tmpDat2[, "gene19"]*tmpDat2[, "isExcluded"],
+    family="binomial")
+fullModel <- full$null.deviance - full$deviance
+names(fullModel) <- "Teff,TBRS,TMB"
+
+allVars <- c(allDat[["desert"]][["variances"]],
+  NA, NA,
+  allDat[["excluded"]][["variances"]],
+  NA, NA,
+  allDat[["inflamed"]][["variances"]],
+  NA, NA,
+  fullModel)
+
+oldMar <-  par()$mar
+
+par(mar=c(6, 3.9, 2, 0))
+
+addCITcolor <- TRUE
+cols <- "grey"
+if (addCITcolor) {
+  cols <- c(rep(color_palettes[["cit_palette"]][1], 11),
+    rep(color_palettes[["cit_palette"]][3], 11),
+    rep(color_palettes[["cit_palette"]][2], 11),
+    rep("grey", 1))
+}
+yLim <- 55
+
+a <- barplot(allVars,
+  main="",
+  ylab="explained variance (%)",
+  col=cols,
+  width=0.02,
+  xlim=c(0,1),
+  ylim=c(0,yLim),
+  #args.legend=list(bg=alpha("white", 0.7),
+  #  box.col=alpha("white", 0.7),
+  #  cex=0.9),
+  xaxt="n",
+  cex.axis=0.9)
+axis(1, 
+  at=a[c(1:3, 5:7, 9, 12:14, 16:18, 20, 23:25, 27:29, 31, 34)],
+  labels=FALSE)
+text(x = a, 
+  y=-3, 
+  labels = names(allVars),
+  srt = -45, 
+  #pos = 1, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+segments(x0=a[1] - 0.01,
+  x1=a[9] + 0.01,
+  y0=max(allVars, na.rm=TRUE) + 1,
+  y1=max(allVars, na.rm=TRUE) + 1,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+segments(x0=a[12] - 0.01,
+  x1=a[20] + 0.01,
+  y0=max(allVars, na.rm=TRUE) + 1,
+  y1=max(allVars, na.rm=TRUE) + 1,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+segments(x0=a[23] - 0.01,
+  x1=a[31] + 0.01, 
+  y0=max(allVars, na.rm=TRUE) + 1,
+  y1=max(allVars, na.rm=TRUE) + 1,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = c(mean(a[1:9]), mean(a[12:20]), mean(a[23:31]), a[34]), 
+  y=max(allVars, na.rm=TRUE) + 4, 
+  labels = c("desert", "excluded", "inflamed", "all"),
+  cex=labCex,
+  xpd=TRUE)
+print("variance explained:")
+print(allVars)
+mtext(at = mean(a), 
+  line=0.85, 
+  side=3,
+  text="Variance explained, core pathways",
+  cex=titleCex,
+  font=titleF)
+
+lapply(allDat, function(x) {
+  print(x[["rawP"]])
+})
+
+## improvement of Teff, TBRS over single models
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_tgfbml"])) {
+  segments(x0=a[18],
+    x1=a[20],
+    y0=yLim -18,
+    y1=yLim -18,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_teffml"])) {
+  segments(x0=a[17],
+    x1=a[20],
+    y0=yLim - 13,
+    y1=yLim - 13,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_tt"])) {
+  segments(x0=a[16],
+    x1=a[20],
+    y0=yLim -8,
+    y1=yLim -8,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_tgfbml"])) {
+  segments(x0=a[29],
+    x1=a[31],
+    y0=yLim -18,
+    y1=yLim -18,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_teffml"])) {
+  segments(x0=a[28],
+    x1=a[31],
+    y0=yLim - 13,
+    y1=yLim - 13,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_tt"])) {
+   segments(x0=a[27],
+    x1=a[31],
+    y0=yLim -8,
+    y1=yLim -8,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+
+text(x = c(median(c(a[18], a[20])), 
+    median(c(a[17], a[20])), 
+    median(c(a[16], a[20]))), 
+  y=c(yLim -16, yLim - 11, yLim -6), 
+  labels = unlist(allDat[["inflamed"]][["pvalues"]][
+    c("core_tgfbml", "core_teffml", "core_tt")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = c(median(c(a[29], a[31])), 
+    median(c(a[28], a[31])), 
+    median(c(a[27], a[31]))), 
+  y=c(yLim -16, yLim - 11, yLim -6), 
+  labels = unlist(allDat[["excluded"]][["pvalues"]][
+    c("core_tgfbml", "core_teffml", "core_tt")]), 
+  cex=0.9,
+  xpd=TRUE)
+
+text(x = a[16],  
+  y=c(3, 1), 
+  labels = unlist(allDat[["inflamed"]][["pvalues"]][c("teffP", "tgfbP")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = a[27], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["excluded"]][["pvalues"]][c("teffP", "tgfbP")]), 
+  cex=0.9,
+  xpd=TRUE)
+
+## improvement of Teff, TMB over single models
+text(x = a[6], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["desert"]][["pvalues"]][c("teffmlP2", "teffmlP")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = a[17], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["inflamed"]][["pvalues"]][c("teffmlP2", "teffmlP")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = a[28], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["excluded"]][["pvalues"]][c("teffmlP2", "teffmlP")]), 
+  cex=0.9,
+  xpd=TRUE)
+
+## improvement of TBRS, TMB over single models
+text(x = a[7], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["desert"]][["pvalues"]][c("tgfbmlP_int", "tgfbmlP_int2")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = a[18], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["inflamed"]][["pvalues"]][c("tgfbmlP_int", "tgfbmlP_int2")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = a[29], 
+  y=c(3, 1), 
+  labels = unlist(allDat[["excluded"]][["pvalues"]][c("tgfbmlP_int", "tgfbmlP_int2")]), 
+  cex=0.9,
+  xpd=TRUE)
+
+
+## improvement of double on final core
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_tgfbml"])) {
+  segments(x0=a[18],
+    x1=a[20],
+    y0=yLim -18,
+    y1=yLim -18,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_teffml"])) {
+  segments(x0=a[17],
+    x1=a[20],
+    y0=yLim - 13,
+    y1=yLim - 13,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["inflamed"]][["pvalues"]]["core_tt"])) {
+  segments(x0=a[16],
+    x1=a[20],
+    y0=yLim -8,
+    y1=yLim -8,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_tgfbml"])) {
+  segments(x0=a[29],
+    x1=a[31],
+    y0=yLim -18,
+    y1=yLim -18,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_teffml"])) {
+  segments(x0=a[28],
+    x1=a[31],
+    y0=yLim - 13,
+    y1=yLim - 13,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+if (!is.na(allDat[["excluded"]][["pvalues"]]["core_tt"])) {
+   segments(x0=a[27],
+    x1=a[31],
+    y0=yLim -8,
+    y1=yLim -8,
+    col="black",
+    xpd=TRUE,
+    lwd=2)
+}
+
+text(x = c(median(c(a[18], a[20])), 
+    median(c(a[17], a[20])), 
+    median(c(a[16], a[20]))), 
+  y=c(yLim -16, yLim - 11, yLim -6), 
+  labels = unlist(allDat[["inflamed"]][["pvalues"]][
+    c("core_tgfbml", "core_teffml", "core_tt")]), 
+  cex=0.9,
+  xpd=TRUE)
+text(x = c(median(c(a[29], a[31])), 
+    median(c(a[28], a[31])), 
+    median(c(a[27], a[31]))), 
+  y=c(yLim -16, yLim - 11, yLim -6), 
+  labels = unlist(allDat[["excluded"]][["pvalues"]][
+    c("core_tgfbml", "core_teffml", "core_tt")]), 
+  cex=0.9,
+  xpd=TRUE)
+
+par(mar=oldMar)
+```
+
+<br>
+
+# Extended data 
+
+
+## ED Figure 7
+
+
+```{r figureS7, fig.width=3.5}
+#pData(fmone)$binaryResponse <- ifelse(pData(fmone)[, irf] %in% c("CR", "PR"), "CR/PR",
+#  ifelse(pData(fmone)[, irf] %in% c("SD", "PD"), "SD/PD", NA_character_))
+#pData(fmone)$binaryResponse <- factor(pData(fmone)$binaryResponse,
+#  levels=c("CR/PR", "SD/PD"))
+
+goi <- c("APOBEC3B", 
+  "MKI67",
+  "DDR",
+  ml)
+
+resp <- "binaryResponse"
+tmpDat <- pData(fmone)
+
+ids <- ind_genes[["DDR"]]
+tmp <- fmone[featureNames(fmone) %in% ids, ]
+mutStatus <- any_mutation(tmp)
+mutStatus <- colSums(mutStatus)
+tmpDat[, "DDR"] <- mutStatus > 0
+
+tmpDat <- tmpDat[!is.na(tmpDat[, resp]), ]
+tmpDat[, resp] <- droplevels(tmpDat[, resp])
+tmpDat[, ml] <- as.numeric(tmpDat[, ml])
+tmpDat <- tmpDat[!is.na(tmpDat[, ml]) & tmpDat[, ml] > 0, ]
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+mki67 <- setNames(m2["MKI67", ], as.character(pData(cds2)$"ANONPT_ID"))
+apo <- setNames(m2["APOBEC3B", ], as.character(pData(cds2)$"ANONPT_ID"))
+gene19 <- setNames(pData(cds2)[, "gene19"], as.character(pData(cds2)$"ANONPT_ID"))
+tmpDat$MKI67 <- mki67[as.character(tmpDat$"ANONPT_ID")]
+tmpDat$APOBEC3B <- apo[as.character(tmpDat$"ANONPT_ID")]
+tmpDat$gene19 <- scale(gene19[as.character(tmpDat$"ANONPT_ID")], 
+  center=TRUE,
+  scale=TRUE)
+tmpDat <- tmpDat[!is.na(tmpDat$APOBEC3B), ]
+
+varExp2 <- t(sapply(goi, function(sig) {
+  fit <- glm(tmpDat[, resp] ~ 
+    tmpDat[, sig],
+    family="binomial")
+  fit$null.deviance - fit$deviance
+}))
+varExp2 <- varExp2[1,]
+
+varExp3 <- t(sapply(goi[goi != ml], function(sig) {
+  fit2.2 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, ml] + tmpDat[, sig],
+    family="binomial")
+  fit2.2$null.deviance - fit2.2$deviance
+}))
+varExp3 <- varExp3[1,]
+names(varExp3) <- paste0("TMB,", names(varExp3))
+
+fit4.1 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml] * tmpDat[, "gene19"],
+  family="binomial")
+varExp4.1 <- fit4.1$null.deviance - fit4.1$deviance
+names(varExp4.1) <- "TMB,TBRS"
+fit4.2 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml] * tmpDat[, "gene19"] + tmpDat[, "MKI67"],
+  family="binomial")
+varExp4.2 <- fit4.2$null.deviance - fit4.2$deviance
+names(varExp4.2) <- "TMB,TBRS,MKI67"
+
+varExp <- c(sort(varExp2), sort(varExp3), varExp4.1, varExp4.2)
+names(varExp) <- sub(ml, "TMB", names(varExp))
+names(varExp) <- sub("Cell cycle regulation", "CCR", names(varExp))
+
+## get p-values
+fit_ml_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml],
+  family="binomial")
+fit_DDR_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "DDR"],
+  family="binomial")
+fit_APO_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "APOBEC3B"],
+  family="binomial")
+fit_KI67_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "MKI67"],
+  family="binomial")
+
+fit_ml_ddr <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml] +
+  tmpDat[, "DDR"],
+  family="binomial")
+fit_ml_apo <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml] +
+  tmpDat[, "APOBEC3B"],
+  family="binomial")
+fit_ml_ki67 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml] +
+  tmpDat[, "MKI67"],
+  family="binomial")
+
+# likelihood ratio test Ps for display
+ddrP <- signif(anova(fit_ml_0, fit_ml_ddr, test="Chisq")$"Pr(>Chi)"[2], 2)
+apoP <- signif(anova(fit_ml_0, fit_ml_apo, test="Chisq")$"Pr(>Chi)"[2], 2)
+ki67P <- signif(anova(fit_ml_0, fit_ml_ki67, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+ki67P2 <- signif(anova(fit4.1, fit4.2, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+pvals <- list(ddrP=ddrP,
+  apoP=apoP,
+  ki67P=ki67P,
+  ki67P2=ki67P2
+  )
+print(pvals)
+pvals <- lapply(pvals, function(x) {
+  ifelse(x < 0.001, "***",
+  ifelse(x < 0.01, "**",
+    ifelse(x < 0.05, "*",
+      ifelse(x < 0.1, ".", "n.s."))))
+})
+
+oldMar <-  par()$mar
+par(mar=c(6, 3.9, 2.5, 0))
+
+a <- barplot(varExp,
+  main="",
+  ylab="explained variance (%)",
+  col="grey",
+  width=0.068,
+  xlim=c(0,1),
+  ylim=c(0,40),
+  xaxt="n",
+  cex.axis=0.9)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  y=-3, 
+  labels = names(varExp), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+print("variance explained:")
+print(varExp)
+mtext(at = a[4], 
+  line=1, 
+  side=3,
+  text="Variance explained, TMB-related",
+  cex=titleCex,
+  font=titleF)
+
+segments(x0=a[4],
+  x1=a[5],
+  y0=31,
+  y1=31,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[5])), 
+  y=32.5, 
+  labels = pvals[["ddrP"]], 
+  #pos=3,
+  cex=0.9)
+
+segments(x0=a[4],
+  x1=a[6],
+  y0=34.5,
+  y1=34.5,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[6])), 
+  y=36, 
+  labels = pvals[["apoP"]], 
+  #pos=3,
+  cex=0.9)
+
+segments(x0=a[4],
+  x1=a[7],
+  y0=38,
+  y1=38,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[7])), 
+  y=39, 
+  labels = pvals[["ki67P"]], 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+segments(x0=a[8],
+  x1=a[9],
+  y0=42.2,
+  y1=42.2,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[8], a[9])), 
+  y=43.5, 
+  labels = pvals[["ki67P2"]], 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+par(mar=oldMar)
+```
+
+
+## ED Figure 8
+
+
+```{r figureS8a, fig.width=3.5}
+sigs <- c("gene19",
+  "EMT1",
+  "EMT2",
+  "EMT3")
+tmp <- pData(cds2)[, sigs]
+colnames(tmp) <- sub("gene19", "Pan-F-TBRS", colnames(tmp))
+colnames(tmp) <- sub("F-Canonical", "CAF", colnames(tmp))
+M <- cor(tmp)
+corrplot.mixed(M,
+  lower="ellipse",
+  upper="number",
+  number.cex = 0.6,
+  order="AOE",
+  tl.cex = 0.9, 
+  tl.col = "black",
+  xpd=TRUE,
+  tl.pos="lt",
+  diag="n")
+```
+
+```{r figureS8b, fig.width=3.5}
+par(mar=c(5.5, 4.1, 2, 2))
+
+sigs <- c("EMT1", 
+  "EMT2", 
+  "EMT3")
+
+for (sig in sigs) {
+
+  yLim <- c(-6, 6)
+  if (sig == "EMT1") {
+    yLim <- c(-4, 8) 
+  }
+  
+  feat <- "Immune phenotype"
+  resp <- "binaryResponse"
+
+  dat <- data.frame("Signature"= pData(cds2)[, sig], 
+    "Immunophenotype"= pData(cds2)[, feat], 
+    "Response"= pData(cds2)[, resp],
+    check.names=FALSE)
+  dat <- dat[!is.na(dat$Response) & !is.na(dat$Immunophenotype), ]
+  nSamples <- table(dat$Response, dat$Immunophenotype)
+
+  pvals <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$Immunophenotype == cit,]
+    pvals <- c(pvals,
+      signif(getPfromAnova(tmp$Signature, tmp$Response), 2))  
+  }
+
+    pvals2 <- c()
+    for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$Immunophenotype == cit,]
+    pvals2 <- c(pvals2,
+      signif(wilcox.test(tmp$Signature ~ tmp$Response)$p.value, 2))  
+  }
+  print("Wilcoxon test, unadjusted")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+
+  pvals2 <- c()
+  for (cit in levels(pData(cds2)[, feat])) {
+    tmp <- dat[dat$Immunophenotype == cit,]
+    pvals2 <- c(pvals2,
+      signif(t.test(tmp$Signature ~ tmp$Response)$p.value, 2))  
+  }
+  print("T test (unadjusted)")
+  print(setNames(pvals2, levels(pData(cds2)[, feat])))
+  print("T test, adjusted")
+  pvals2 <- ifelse(pvals2 * 3 > 1, 1, pvals2 * 3)
+  print(setNames(pvals2, 
+    levels(pData(cds2)[, feat])))
+    
+  pvals3 <- pLevel(pvals2)
+
+  tmp <- lapply(levels(pData(cds2)[, feat]), function(cit) {
+    if (cit == "inflamed") {
+      list("CR/PR"=dat$Signature[dat$Response == "CR/PR" & dat$Immunophenotype == cit],
+        "SD/PD"=dat$Signature[dat$Response == "SD/PD" & dat$Immunophenotype == cit]) 
+    } else {
+      list("CR/PR"=dat$Signature[dat$Response == "CR/PR" & dat$Immunophenotype == cit],
+        "SD/PD"=dat$Signature[dat$Response == "SD/PD" & dat$Immunophenotype == cit],
+        y=numeric(0))
+    }
+  })
+
+  par(mar=c(5.5, 4.1, 2, 2))
+
+  at.x <- seq(1, by=0.5, length.out=8)
+  a <- boxplot(unlist(tmp, recursive=FALSE),
+    ylab=paste(sig, "score"),
+    col=color_palettes[["response_palette"]][c(1,2,1,1,2,1,1,2)],
+    cex.axis=axisCex,
+    cex.lab=labCex,
+    cex.names=namesCex, 
+    whisklty = 1,
+    ylim=yLim,
+    xaxt="n",
+    at=at.x,
+    boxwex=0.5)
+  axis(1,
+    at=c(1,1.5,2.5,3,4,4.5),
+    labels=rep("", 6))
+  mtext(levels(pData(cds2)[, feat]),
+    side=1,
+    at=c(1.25, 2.75, 4.25),
+    line=3.1,
+    cex=namesCex)
+  text(x = c(1,1.5,2.5,3,4,4.5), 
+    y = par("usr")[3] - 0.7 , 
+    labels = rep(c("CR/PR", "SD/PD"), 3), 
+    srt = -45, 
+    xpd = TRUE,
+    adj=0,
+    cex=namesCex)
+  mtext(nSamples,
+    side=3,
+    at=c(1,1.5,2.5,3,4,4.5),
+    line=0,
+    cex=0.8)
+  mtext(paste0("Response, ", sig, ", phenotype"),
+    side=3,
+    at=2.7,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+
+  yrange <- par("usr")[4] - par("usr")[3]
+  yunit <- yrange/35
+  segments(x0=1,
+    x1=1.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=2.5,
+    x1=3,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  segments(x0=4,
+    x1=4.5,
+    y0=par("usr")[4] - yunit * 2,
+    y1=par("usr")[4] - yunit * 2,
+    col="black",
+    xpd=TRUE,
+    lwd=1)
+  text(y=ifelse(pvals3 == "n.s.", par("usr")[4] - yunit , par("usr")[4] - yunit),
+    x=c(1.25, 2.75, 4.25),
+    labels=pvals3,
+    cex=axisCex) 
+
+}
+```
+
+
+```{r figureS8c, fig.width=3.5}
+resp <- "binaryResponse"
+
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, resp]), ]
+tmpDat[, resp] <- droplevels(tmpDat[, resp])
+goi <- c("CD 8 T effector",
+  "gene19",
+  "EMT1",
+  "EMT2",
+  "EMT3")
+for (sig in goi) {
+  tmpDat[, sig] <- scale(tmpDat[, sig], center=TRUE, scale=TRUE) 
+}
+tmpDat <- tmpDat[!is.na(tmpDat[, ml]) & tmpDat[, ml] > 0, ]
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+fit_emt1_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "EMT1"],
+  family="binomial")
+summary(fit_emt1_0)$coefficients
+
+fit_emt2_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "EMT2"],
+  family="binomial")
+summary(fit_emt2_0)$coefficients
+
+fit_emt3_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "EMT3"],
+  family="binomial")
+summary(fit_emt3_0)$coefficients
+
+fit_tbrs_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"],
+  family="binomial")
+summary(fit_tbrs_0)$coefficients 
+
+fit_tbrs_emt1 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"] + tmpDat[, "EMT1"],
+  family="binomial")
+anova(fit_tbrs_0, fit_tbrs_emt1, test="Chisq") 
+
+fit_tbrs_emt2 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"] + tmpDat[, "EMT2"],
+  family="binomial")
+anova(fit_tbrs_0, fit_tbrs_emt2, test="Chisq") 
+
+fit_tbrs_emt3 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"] + tmpDat[, "EMT3"],
+  family="binomial")
+anova(fit_tbrs_0, fit_tbrs_emt3, test="Chisq")  
+
+## plot
+sigs <- c("EMT1", "EMT2", "EMT3", "gene19")
+
+varExp2 <- t(sapply(sigs, function(sig) {
+  fit <- glm(tmpDat[, resp] ~ 
+    tmpDat[, sig],
+    family="binomial")
+  fit$null.deviance - fit$deviance
+}))
+varExp2 <- varExp2[1,]
+
+varExp3 <- t(sapply(sigs[sigs != "gene19"], function(sig) {
+  fit2.2 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "gene19"] + tmpDat[, sig],
+    family="binomial")
+  fit2.2$null.deviance - fit2.2$deviance
+}))
+varExp3 <- varExp3[1,]
+names(varExp3) <- paste("TBRS +", names(varExp3))
+
+varExp <- c(varExp2, varExp3)
+names(varExp) <- sub("gene19", "Pan-F-TBRS", names(varExp))
+
+print("variance explained:")
+print(varExp)
+
+emt1P <- signif(anova(fit_tbrs_0, fit_tbrs_emt1, test="Chisq")$"Pr(>Chi)"[2], 2) 
+emt2P <- signif(anova(fit_tbrs_0, fit_tbrs_emt2, test="Chisq")$"Pr(>Chi)"[2], 2)
+emt3P <- signif(anova(fit_tbrs_0, fit_tbrs_emt3, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+pvals <- list(emt1P=emt1P,
+  emt2P=emt2P,
+  emt3P=emt3P)
+print(pvals)
+pvals <- lapply(pvals, function(x) {
+  ifelse(x < 0.001, "***",
+  ifelse(x < 0.01, "**",
+    ifelse(x < 0.05, "*",
+      ifelse(x < 0.1, ".", "n.s."))))
+})
+
+oldMar <-  par()$mar
+par(mar=c(6, 3.9, 2.5, 0))
+a <- barplot(varExp,
+  main="",
+  ylab="explained variance (%)",
+  col="grey",
+  width=0.06,
+  xlim=c(0,1),
+  ylim=c(0,10),
+  #args.legend=list(bg=alpha("white", 0.7),
+  #  box.col=alpha("white", 0.7),
+  #  cex=0.9),
+  xaxt="n",
+  cex.axis=0.9)
+axis(1, 
+  at=a,
+  labels=FALSE)
+text(x = a, 
+  y=-0.75, 
+  labels = names(varExp), 
+  srt = -45, 
+  #pos = 1, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(at = a[4], 
+  line=1, 
+  side=3,
+  text="Variance explained, EMT-related",
+  cex=titleCex,
+  font=titleF)
+
+segments(x0=a[4],
+  x1=a[5],
+  y0=6.4,
+  y1=6.4,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[5])), 
+  y=6.8, 
+  labels = pvals[["emt1P"]], 
+  cex=0.9)
+
+segments(x0=a[4],
+  x1=a[6],
+  y0=7.6,
+  y1=7.6,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[6])), 
+  y=8, 
+  labels = pvals[["emt2P"]], 
+  cex=0.9)
+
+segments(x0=a[4],
+  x1=a[7],
+  y0=8.8,
+  y1=8.8,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = mean(c(a[4], a[7])), 
+  y=9.2, 
+  labels = pvals[["emt3P"]], 
+  cex=0.9,
+  xpd=TRUE)
+```
+
+
+
+<br>
+<br>
+
+
+#### Session Info
+
+```{r sessioninfo, echo=FALSE, results="asis"} 
+as.character(Sys.time())
+sessionInfo()
+```

@@ -1,0 +1,2405 @@
+---
+title: TGF-b attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells - Figure 1 and related data
+author: Dorothee Nickles
+date: "`r format(Sys.time())`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cosmo
+    code_folding: hide
+---
+
+```{r options, echo=FALSE}
+options(replace.assign=TRUE, width=90)
+opts_chunk$set(dev=c('png'), fig.width=2.5, fig.height=3.5, out.width='800px', fig.align='center', fig.pos='htbp', fig.retina=FALSE, dev.args=list(pointsize=11), cache=FALSE, dpi=300)
+```
+
+```{r libraries, cache=FALSE, message=FALSE}
+## libraries
+library(DESeq2)
+library(limma)
+library(edgeR)
+library(DT)
+library(ComplexHeatmap)
+#library(circlize)
+library(corrplot)
+library(survival)
+#library(RColorBrewer)
+```
+
+```{r settings}
+# gene sets
+data(human_gene_signatures)
+ind_genes <- human_gene_signatures
+
+# colors
+data(color_palettes)
+
+# variables
+irf <- "Best Confirmed Overall Response"
+ml <- "FMOne mutation burden per MB"
+goi <- names(ind_genes)
+tablesDir <- system.file("tables", 
+  package="IMvigor210CoreBiologies")
+
+# font sizes
+labCex <- 0.9
+namesCex <- 0.9
+legendCex <- 0.9
+titleCex <- 1
+axisCex <- 0.9
+titleF <- 1
+```
+
+```{r prepare_biomarker_data}
+# load
+data(cds)  
+cds2 <- cds
+data(fmone)  
+fmi <- fmone
+
+# normalize 
+geneNames <- setNames(fData(cds2)$Symbol, 
+  as.character(rownames(fData(cds2))))
+voomD <- filterNvoom(counts(cds2),
+  minSamples=ncol(counts(cds2))/10,
+  minCpm=0.25)
+m <- voomD$E
+m <- t(scale( t( m ),
+  center=TRUE, 
+  scale=TRUE)
+)
+# add signature scores to pData()
+m2 <- m
+rownames(m2) <- geneNames[rownames(m2)]
+
+# calculate gene set scores
+for (sig in goi) {
+  pData(cds2)[, sig] <- NA
+  genes <- ind_genes[[sig]]
+  genes <- genes[genes %in% rownames(m2)]
+  tmp <- m2[genes, , drop=FALSE]
+  pData(cds2)[, sig] <- gsScore(tmp)
+}
+pData(cds2)$MKI67 <- m2["MKI67", ]
+```
+
+
+# Figure 1a
+
+```{r figure1a}
+oldMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+feat <- "IC Level"
+
+tmpDat <- pData(cds2)[ !is.na(pData(cds2)[, feat]) & pData(cds2)[, irf] != "NE", ]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+  
+ic <- table(tmpDat[, feat], tmpDat[, "binaryResponse"])
+pval <- signif(fisher.test(ic)$p.value, 2)
+print(paste("Fisher P for IC by binary response:", pval))
+
+for (rr in c("CR", "PR")) {
+  tmpDat$group <- ifelse(tmpDat[, irf] == rr, "R", "NR")
+  tmpDat$group <- factor(tmpDat$group)
+  ic <- table(tmpDat[, feat], tmpDat$group)
+  print(rr)
+  print("all")
+  print(signif(fisher.test(ic)$p.value, 2))
+  ic01 <- signif(fisher.test(ic[c("IC0", "IC1"),])$p.value, 2)
+  ic02 <- signif(fisher.test(ic[c("IC0", "IC2+"),])$p.value, 2)
+  ic12 <- signif(fisher.test(ic[c("IC1", "IC2+"),])$p.value, 2)
+  ic2 <- rbind(ic01=colSums(ic[c("IC0", "IC1"),]),
+    ic2=ic["IC2+",])
+  ic2 <- signif(fisher.test(ic2)$p.value, 2)
+  tmp <- c("IC0vsIC1"=ic01, "IC0vs2+"=ic02, "IC1vs2+"=ic12) 
+  tmp <- ifelse(tmp * 3 > 1, 1, tmp * 3)
+  print(c(tmp, "IC2vsOthers"=ic2))
+}
+
+ic <- table(tmpDat[, feat], tmpDat[, irf])
+nSamples <- rowSums(ic)
+ic <- prop.table(t(ic), 
+  margin=2)
+a <- barplot(ic,
+  ylab="fraction of patients",
+  cex.names=namesCex,
+  cex.axis=axisCex,
+  cex.lab=labCex,
+  legend.text=rownames(ic),
+  col=color_palettes$irf_palette,
+  width=0.16,
+  xlim=c(0,1),
+  args.legend=list(bty="n",
+     cex=legendCex,
+     x="topright"),
+  xaxt="n")
+text(x = a, 
+  y = par("usr")[3] - 0.03, 
+  labels = levels(tmpDat[, feat]), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.7)
+mtext(paste("IC", "response", sep=", "),
+  side=3,
+  at=a[2],
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+par(mar=oldMar)
+```
+
+
+
+# Figure 1b
+
+```{r figure1b}
+addDots <- FALSE
+
+orgMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+tmpDat <- pData(cds2)[pData(cds2)[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+pval <- signif(wilcox.test(tmpDat[, "CD 8 T effector"] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("Wilcoxon test P for Teff by binary response:", pval))
+
+pval <- signif(t.test(tmpDat[, "CD 8 T effector"] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("T test P for Teff by binary response:", pval))
+
+
+yLab <- "CD8 T-effector score"
+a <- boxplot(tmpDat[, "CD 8 T effector"] ~ tmpDat[, irf],
+  ylab=yLab,
+  col=color_palettes$irf_palette[levels(tmpDat[, irf])],
+  cex.main=0.6,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,
+  ylim=c(-8, 6.5), 
+  whisklty = 1)
+if (addDots) {
+  points(y=tmpDat[, "CD 8 T effector"],
+    x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, irf]),
+  line=0,
+  cex=0.75)
+
+mtext("CD8 T-effector, response",
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+ind <- tmpDat[, irf] %in% c("CR", "PR")
+pvalCRpr <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+ind <- tmpDat[, irf] %in% c("CR", "SD")
+pvalCRsd <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+ind <- tmpDat[, irf] %in% c("CR", "PD")
+pvalCRpd <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+pvalsCR <- c(CRpr=pvalCRpr, 
+  CRsd=pvalCRsd, 
+  CRpd=pvalCRpd)
+
+ind <- tmpDat[, irf] %in% c("PR", "SD")
+pvalPRsd <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+ind <- tmpDat[, irf] %in% c("PR", "PD")
+pvalPRpd <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+ind <- tmpDat[, irf] %in% c("SD", "PD")
+pvalSDpd <- t.test(tmpDat[ind, "CD 8 T effector"] ~ droplevels(tmpDat[ind, irf]))$p.value
+pvalsOther <- c(PRsd=pvalPRsd, 
+  PRsd=pvalPRpd, 
+  SDpd=pvalSDpd)
+
+pvalsAll <- c(pvalsCR, pvalsOther)
+pvalsAll <- ifelse(pvalsAll * length(pvalsAll) > 1, 1, pvalsAll * length(pvalsAll))
+print("t test P for all possible groupings:") 
+print(pvalsAll)
+pvalsStar <- pLevel(pvalsAll)
+
+segments(x0=1,
+  x1=4,
+  y0=6.45,
+  y1=6.45,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+text(x=2.5,
+  y=6.75,
+  labels=pvalsStar["CRpd"],
+  font=1,
+  cex=1.2,
+  xpd=TRUE)
+
+segments(x0=1,
+  x1=3,
+  y0=6.06,
+  y1=6.06,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+text(x=2,
+  y=6.28,
+  labels=pvalsStar["CRsd"],
+  font=1,
+  cex=1.6,
+  xpd=TRUE)
+
+segments(x0=1,
+  x1=2,
+  y0=5.5,
+  y1=5.5,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+text(x=1.5,
+  y=5.75,
+  labels=pvalsStar["CRpr"],
+  font=1,
+  cex=1.2,
+  xpd=TRUE)
+
+par(mar=orgMar)
+
+crAll <- factor(ifelse(tmpDat[, irf] == "CR", "CR", "nonCR"))
+pvalCRall <- t.test(tmpDat[, "CD 8 T effector"] ~ crAll)$p.value
+print(paste("t test P for CR vs all:", pvalCRall))
+
+ind <- tmpDat[, irf] != "CR"
+print("ANOVA P for PR/SD/PD")
+getPfromAnova(tmpDat[ind, "CD 8 T effector"], droplevels(tmpDat[ind, irf]))
+```
+
+# Figure 1c
+
+```{r figure1c, fig.width=3.5}
+bio <- "CD 8 T effector"
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, bio]),]
+tmpDat$group <- cut(tmpDat[, bio], 
+  quantile(tmpDat[, bio], c(0, 0.25, 0.5, 0.75, 1)),
+  include.lowest = TRUE)
+tmpDat$group <- factor(tmpDat$group,
+  labels=c("1st Quart", 
+    "2nd Quart",
+    "3rd Quart",
+    "4th Quart"))
+fittedSurv <- survfit(Surv(time=os, event=censOS) ~ group, 
+              data=tmpDat)
+diffSurv <- survdiff(Surv(time=os, event=censOS) ~ group,           
+            data=tmpDat)
+plotSurvival2(survFit=fittedSurv, 
+    survDiff=diffSurv, 
+    diff.factor=as.factor(tmpDat$group), 
+    main="CD8 T-effector, survival", 
+    cols=rev(color_palettes[["irf_palette"]][1:4]),
+    ltypes=rep(1, nlevels(tmpDat$group)),
+    pval="none",
+    #coxphData=coxphDat,
+    plotMedian=TRUE,
+    plot.nrisk=FALSE,
+    xLab="OS (months)",
+    lwd=3,
+    cexMedian=axisCex - 0.1,
+    cexLegend=legendCex,
+    cex.lab=labCex)
+
+print(coxph(Surv(os, censOS) ~ 
+  as.integer(tmpDat$group),
+  data=tmpDat))
+```
+
+# Figure 1d
+
+```{r figure1d}
+addDots <- FALSE
+alternative <- TRUE
+
+## response by Mutation burden
+
+oldMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+bio <- ml
+feat <- irf
+
+clinDat2 <- pData(cds2)[!is.na(pData(cds2)[, bio]) & pData(cds2)[, bio] > 0,]
+
+tmpDat <- clinDat2[!is.na(clinDat2[, feat]),]
+tmpDat <- tmpDat[tmpDat[, feat] != "NE",]
+tmpDat[, feat] <- droplevels(tmpDat[, feat])
+ind <- tmpDat[, bio] > 0
+tmpDat[, bio] <- log2(tmpDat[, bio])
+
+yLab <- "TMB"
+
+a <- boxplot(tmpDat[ind, bio] ~ tmpDat[ind, feat],
+  ylab=yLab,
+  col=color_palettes$irf_palette,
+  cex.main=0.6,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,  
+  whisklty = 1,
+  ylim=c(1,log2(80)),
+  yaxt="n")
+axis(2,
+  at=log2(c(1,2,5,10,20,50)),
+  labels=c(1,2,5,10,20,50),
+  cex=axisCex)
+if (addDots) {
+  points(y=tmpDat[ind, bio],
+    x=jitter(as.numeric(tmpDat[ind, feat]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+} 
+  mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, feat]),
+  line=0,
+  cex=0.8)
+
+pval <- signif(wilcox.test(as.numeric(tmpDat[ind, bio]) ~ tmpDat[ind, "binaryResponse"])$p.value, 
+    2)
+print(paste("Wilcoxon Test p TMB by response:", pval))
+
+pval <- signif(t.test(as.numeric(tmpDat[ind, bio]) ~ tmpDat[ind, "binaryResponse"])$p.value, 
+    2)
+print(paste("T Test p TMB by response:", pval))
+
+mtext("TMB, response",
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+if (alternative) {
+	yrange <- par("usr")[4] - par("usr")[3]
+	yunit <- yrange/60
+	segments(x0=1,
+	  x1=2,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 4,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=3,
+	  x1=4,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 4,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=1.5,
+	  x1=1.5,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=3.5,
+	  x1=3.5,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=1.5,
+	  x1=3.5,
+	  y0=par("usr")[4] - yunit * 2,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	text(y=par("usr")[4] - yunit ,
+	  x=2.5,
+	  labels=pLevel(pval),
+	  cex=axisCex) 
+}
+
+par(mar=oldMar)
+```
+
+# Figure 1e
+
+```{r figure1e, fig.width=3.5}
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, ml]),]
+tmpDat$group <- cut(tmpDat[, ml], 
+  quantile(tmpDat[, ml], c(0, 0.25, 0.5, 0.75, 1)),
+  include.lowest = TRUE)
+tmpDat$group <- factor(tmpDat$group,
+  labels=c("1st Quart", 
+    "2nd Quart",
+    "3rd Quart",
+    "4th Quart"))
+fittedSurv <- survfit(Surv(time=os, event=censOS) ~ group, 
+  data=tmpDat)
+diffSurv <- survdiff(Surv(time=os, event=censOS) ~ group,           
+  data=tmpDat)
+plotSurvival2(survFit=fittedSurv, 
+  survDiff=diffSurv, 
+  diff.factor=as.factor(tmpDat$group), 
+  main="TMB, survival", 
+  cols=rev(color_palettes[["irf_palette"]][1:4]),
+  ltypes=rep(1, nlevels(tmpDat$group)),
+  pval="none",
+  #coxphData=coxphDat,
+  plotMedian=TRUE,
+  plot.nrisk=FALSE,
+  xLab="OS (months)",
+  lwd=3,
+  cexMedian=axisCex,
+  cexLegend=legendCex,
+  cex.lab=labCex)
+
+print(coxph(Surv(os, censOS) ~ 
+  as.integer(tmpDat$group),
+  data=tmpDat))
+```
+
+
+# Figure 1f
+
+```{r figure1f}
+ind <- !is.na(pData(fmi)$binaryResponse)
+pData(fmi)$binaryResponse <- factor(pData(fmi)$binaryResponse,
+  levels=c("CR/PR", "SD/PD"))
+
+par(mar=c(5.5, 4.1, 2, 0))
+
+path <- "DDR"
+
+ids <- ind_genes[[path]]
+ids <- ids[!ids %in% "TP53"]
+tmp <- fmi[featureNames(fmi) %in% ids, ]
+mutStatus <- any_mutation(tmp)
+mutStatus <- colSums(mutStatus)
+
+pval <- signif(fisher.test(table(pData(fmi)[ind, "binaryResponse"], mutStatus[ind] > 0))$p.value)
+print(paste("Fisher P binary response by DDR mutation status:", pval))
+
+b <- table(responder = fmi$binaryResponse[ind],
+        mutant = factor(mutStatus[ind] > 0))
+nSamples <- colSums(b)
+d <- prop.table(b, 
+margin=2)
+
+a <- barplot(d,
+  legend.text=colnames(d),
+  col=color_palettes$response_palette[rownames(d)],
+  cex.names=namesCex,
+  cex.axis=axisCex,
+  cex.lab=labCex,
+  width=0.2,
+  xlim=c(0,1),
+  ylab="fraction of patients",
+  xaxt="n",
+  args.legend=list(x="topright",
+    bty="n",
+    fill=color_palettes$response_palette,
+    legend=c("CR/PR", "SD/PD"),
+    cex=legendCex))
+text(x = a, 
+  y = par("usr")[3] - 0.06, 
+  labels = ifelse(colnames(d) == FALSE, "non-mutant", "mutant"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex,
+  xpd=TRUE)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.7)
+mtext(paste(path, "w/o TP53, response"),
+  side=3,
+  at=mean(a),
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+mtext(pLevel(pval),
+  at=mean(a),
+  side=1,
+  line=0.05,
+  cex=namesCex,
+  xpd=TRUE)  
+segments(x0=a[1] - 0.05,
+  x1=a[2] + 0.05,
+  y0=-0.02,
+  y1=-0.02,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+
+par(mar=oldMar)
+```
+
+# Figure 1g
+
+## Pathway stats
+
+```{r figure1g_stats1, results="asis"}
+ind <- !is.na(pData(fmi)$binaryResponse)
+pathFMIout <- lapply(c("DDR", "CC Reg"), function(path) {
+  ids <- ind_genes[[path]]
+  tmp <- fmi[featureNames(fmi) %in% ids, ]
+  mutStatus <- any_mutation(tmp)
+  mutStatus <- colSums(mutStatus)
+  t <- table(responder = fmi$binaryResponse[ind],
+            mutant = factor(mutStatus[ind] > 0))
+  f <- fisher.test( t )
+  setNames(c( path, sum(mutStatus[ind] > 0), "response", f$estimate, f$p.value ),
+    c("Pathway", "n mutant", "category", "estimate", "PVal"))
+})
+pathFMIout <- do.call(rbind, pathFMIout)
+pathFMIout <- as.data.frame(pathFMIout,
+  stringsAsFactors=FALSE)
+pathFMIout$estimate <- signif(as.numeric(pathFMIout$estimate))
+pathFMIout$PVal <- signif(as.numeric(pathFMIout$PVal))
+#pathFMIout$AdjP <- p.adjust(pathFMIout$PVal, method="BH")
+
+ind <- !is.na(pData(fmi)[,ml])
+pathFMIout2 <- lapply(c("DDR", "CC Reg"), function(path) {
+  ids <- ind_genes[[path]]
+  tmp <- fmi[featureNames(fmi) %in% ids, ]
+  mutStatus <- any_mutation(tmp)
+  mutStatus <- colSums(mutStatus)
+  f <- t.test( as.numeric(pData(fmi)[ind,ml]) ~ mutStatus[ind] > 0, 
+    conf.int = TRUE )
+  setNames(c( path, sum(mutStatus[ind] > 0), "TMB", f$estimate[1] - f$estimate[2], f$p.value ),
+    c("Pathway", "n mutant", "category", "estimate", "PVal"))
+})
+pathFMIout2 <- do.call(rbind, pathFMIout2)
+pathFMIout2 <- as.data.frame(pathFMIout2,
+  stringsAsFactors=FALSE)
+pathFMIout2$estimate <- signif(as.numeric(pathFMIout2$estimate))
+pathFMIout2$PVal <- signif(as.numeric(pathFMIout2$PVal))
+#pathFMIout2$AdjP <- p.adjust(pathFMIout2$PVal, method="BH")
+pathFMIout <- rbind(pathFMIout, pathFMIout2)
+datatable(pathFMIout,
+  rownames=FALSE)
+```
+
+## Single gene stats
+
+```{r figure1g_stats2, results="asis"}
+tmp <- any_mutation(fmi)
+tmp <- tmp[rowSums(tmp) > 0, ]
+pathFMIout3 <- lapply(rownames(tmp), function(gene) {
+  mutStatus <- tmp[gene,]
+  ind <- !is.na(pData(fmi)[,ml])
+  f <- try(t.test( as.numeric(pData(fmi)[ind,ml]) ~ mutStatus[ind] > 0, 
+    conf.int = TRUE ))
+  if (!is(f, "try-error")) {
+    a <- setNames(c( gene, 
+        sum(mutStatus[ind] > 0), 
+        "TMB", 
+        f$estimate[1]-f$estimate[2], 
+        f$p.value ),
+      c("Gene", "n mutant", "category", "estimate", "PVal"))
+  } else {
+    a <- setNames(c( gene, 
+        sum(mutStatus[ind] > 0), 
+        "TMB", 
+        NA, 
+        NA ),
+      c("Gene", "n mutant", "category", "estimate", "PVal"))
+  }
+  ind <- !is.na(pData(fmi)$binaryResponse)
+  t <- table(responder = fmi$binaryResponse[ind],
+            mutant = factor(mutStatus[ind] > 0, levels=c("TRUE", "FALSE")))
+  f <- fisher.test( t )
+  b <- setNames(c( gene, sum(mutStatus[ind] > 0), "response", f$estimate, f$p.value ),
+    c("Gene", "n mutant", "category", "estimate", "PVal"))
+  rbind(a, b)
+})
+pathFMIout3 <- do.call(rbind, pathFMIout3)
+pathFMIout3 <- as.data.frame(pathFMIout3,
+  stringsAsFactors=FALSE)
+pathFMIout3$estimate <- signif(as.numeric(pathFMIout3$estimate))
+pathFMIout3$PVal <- signif(as.numeric(pathFMIout3$PVal))
+
+## adjust p-values
+pathFMIout3$AdjP <- NA
+pathFMIout3$AdjP[pathFMIout3$category == "response"] <- p.adjust(
+  pathFMIout3$PVal[pathFMIout3$category == "response"] , method="BH")
+pathFMIout3$AdjP[pathFMIout3$category == "TMB"] <- p.adjust(
+  pathFMIout3$PVal[pathFMIout3$category == "TMB"] , method="BH")
+pathFMIout3$inDDR <- pathFMIout3$Gene %in% ind_genes$DDR
+pathFMIout3$inCCReg <- pathFMIout3$Gene %in% ind_genes$"CC Reg"
+datatable(pathFMIout3,
+  rownames=FALSE)
+```
+
+
+```{r figure1g, fig.width=3.5}
+path <- "DDR"
+
+fmiPathP <- pathFMIout[pathFMIout$category == "TMB", ]
+fmiGeneP <- pathFMIout3[pathFMIout3$category == "TMB", ]
+
+ids <- ind_genes[[path]]
+ids <- ids[ids %in% featureNames(fmi)]
+fmiGoi <- fmi[featureNames(fmi) %in% ids, ]
+sOrder <- order(as.numeric(pData(fmiGoi)[, ml]), decreasing=TRUE)
+
+mutGoi <- any_mutation(fmiGoi)
+
+tmp1 <- mutGoi[rowSums(mutGoi) > 0,]
+tmp2 <- colSums(tmp1)
+tmp2 <- tmp2 > 0
+if ("TP53" %in% ids) {
+  tmp3 <- mutGoi[ids[! ids %in% "TP53"], ]
+  tmp3 <- colSums(tmp3)
+  tmp3 <- tmp3 > 0
+  tmp2 <- rbind(tmp2, tmp3)
+}
+toSort <- rowSums(tmp1)
+toSort <- sort(toSort, decreasing=TRUE)
+mutGoi <- rbind(tmp1[names(toSort),], tmp2)
+rownames(mutGoi)[rownames(mutGoi) == "tmp2"] <- "pathway"
+if ("TP53" %in% ids) {
+  rownames(mutGoi)[rownames(mutGoi) == "tmp3"] <- "pathway w/o TP53"
+}
+
+
+mutGoi <- apply(mutGoi, 2, function(x) {
+  ifelse(x, "mutant", "")
+})
+
+fmiCols <- c(mutant="black")
+alter_fun = function(x, y, w, h, v) {
+    if(v["mutant"]) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = fmiCols["mutant"], 
+      col = NA))
+  }
+
+
+ha = HeatmapAnnotation(TMB = anno_barplot(as.numeric(pData(fmiGoi)[sOrder, ml]),
+    border=FALSE,
+    gp = gpar(fill="black")),
+  annotation_legend_param=list(gp = gpar(fontsize = 1)),
+  show_annotation_name = TRUE,
+  annotation_name_side="left",
+  annotation_name_gp = gpar(fontsize = 10))
+
+rownames(mutGoi) <- paste0(rownames(mutGoi),
+  ifelse(rownames(mutGoi) %in% fmiGeneP$Gene[fmiGeneP$AdjP < 0.05], "*", ""))
+
+op1 <- oncoPrint(mutGoi[, sOrder], 
+  col=fmiCols,
+  alter_fun=alter_fun,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "Mutations in cell cycle regulation genes", 
+  top_annotation=ha,
+  show_pct=TRUE,
+  pct_gp = gpar(fontsize = 9),
+  row_names_gp = gpar(fontsize = 9),
+  column_title_gp = gpar(fontsize = 10),
+  heatmap_legend_param=list(title ="Mutation Status"),
+  show_row_barplot = FALSE,
+  show_heatmap_legend = FALSE)
+
+
+op2 <- oncoPrint(mutGoi[, sOrder], 
+  col=fmiCols,
+  alter_fun=alter_fun,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "Mutations in DDR genes", 
+  top_annotation=ha,
+  show_pct=TRUE,
+  pct_gp = gpar(fontsize = 9),
+  row_names_gp = gpar(fontsize = 9),
+  column_title_gp = gpar(fontsize = 10),
+  heatmap_legend_param=list(title ="Mutation Status"),
+  show_row_barplot = FALSE,
+  show_heatmap_legend = FALSE)
+
+draw(op2, 
+  padding = unit(c(1, 5, 0, 1), "mm"),
+  row_title="mutation prevalence",
+  row_title_gp=gpar(fontsize = 10))
+```
+
+
+
+
+# Figure 1h
+
+```{r figure1h}
+plotDots <- FALSE
+binary <- FALSE
+
+orgMar <- par()$mar
+
+tmpDat <- pData(cds2)
+tmpDat$TGFB1 <- scale(m2["TGFB1", ], center=TRUE, scale=TRUE)
+
+tmpDat <- tmpDat[tmpDat[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+sig <- "TGFB1"
+  
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+pval <- signif(wilcox.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+  2)
+print(paste("Wilcoxon test P", sig, "score by binary Response:", pval))
+
+pval <- signif(t.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+  2)
+print(paste("T test P", sig, "score by binary Response:", pval))
+
+
+yLab <- paste(sig, "expression")
+
+a <- boxplot(tmpDat[, sig] ~ tmpDat[, irf],
+  ylab=yLab,
+  col=color_palettes[["irf_palette"]][levels(tmpDat[, irf])],
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex, 
+  ylim=c(-5, 5),
+  whisklty = 1)
+if (plotDots) {
+  points(y=tmpDat[, sig],
+    x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, irf]),
+  line=0,
+  cex=0.75)
+mtext(paste0(sig, ", response"),
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+yrange <- par("usr")[4] - par("usr")[3]
+yunit <- yrange/60
+segments(x0=1,
+  x1=2,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 4,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=3,
+  x1=4,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 4,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=1.5,
+  x1=1.5,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=3.5,
+  x1=3.5,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=1.5,
+  x1=3.5,
+  y0=par("usr")[4] - yunit * 2,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+text(y=par("usr")[4] - yunit ,
+  x=2.5,
+  labels=pLevel(pval),
+  cex=ifelse(pLevel(pval) == "n.s.", axisCex - 0.1, axisCex))   
+
+par(mar=orgMar)
+```
+
+
+# Figure 1i
+
+```{r figure1i, fig.width=3.5}
+bio <- "TGFB1"
+
+tmpDat  <- pData(cds2)
+tmpDat$TGFB1 <- m2["TGFB1", ]
+
+tmpDat <- tmpDat[!is.na(tmpDat[, bio]),]
+tmpDat$group <- cut(tmpDat[, bio], 
+  quantile(tmpDat[, bio], c(0, 0.25, 0.5, 0.75, 1)),
+  include.lowest = TRUE)
+tmpDat$group <- factor(tmpDat$group,
+  labels=c("1st Quart", 
+    "2nd Quart",
+    "3rd Quart",
+    "4th Quart"))
+fittedSurv <- survfit(Surv(time=os, event=censOS) ~ group, 
+              data=tmpDat)
+diffSurv <- survdiff(Surv(time=os, event=censOS) ~ group,           
+            data=tmpDat)
+plotSurvival2(survFit=fittedSurv, 
+    survDiff=diffSurv, 
+    diff.factor=as.factor(tmpDat$group), 
+    main="TGFB1, survival", 
+    cols=rev(color_palettes[["irf_palette"]][1:4]),
+    ltypes=rep(1, nlevels(tmpDat$group)),
+    pval="none",
+    #coxphData=coxphDat,
+    plotMedian=TRUE,
+    plot.nrisk=FALSE,
+    xLab="OS (months)",
+    lwd=3,
+    cexMedian=axisCex - 0.1,
+    cexLegend=legendCex,
+    cex.lab=labCex)
+
+print(coxph(Surv(os, censOS) ~ 
+  as.integer(tmpDat$group),
+  data=tmpDat))
+```
+
+
+# Extended Data 
+
+## ED Figure 1
+
+```{r figureS1b}
+table(IC=pData(cds2)[, "IC Level"], TC=pData(cds2)[, "TC Level"])
+
+tmp <- pData(cds2)[!is.na(pData(cds2)[, "TC Level"]), ]
+a <- ifelse(tmp[, "TC Level"] %in% "TC0", "TC-", "TC+")
+b <- ifelse(tmp[, "IC Level"] %in% "IC0", "IC-", "IC+")
+table(IC=b, TC=a)
+prop.table(table(IC=b, TC=a), 2)
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+for (feat in "TC Level") {
+  tmpDat <- pData(cds2)[ !is.na(pData(cds2)[, feat]) & pData(cds2)[, irf] != "NE", ]
+  tmpDat[, irf] <- droplevels(tmpDat[, irf])
+  ic <- table(tmpDat[, feat], tmpDat[, "binaryResponse"])
+  pval <- signif(fisher.test(ic)$p.value, 2)
+  print(paste("Fisher P for TC by binary response:", pval))
+  ic <- table(tmpDat[, feat], tmpDat[, irf])
+  nSamples <- rowSums(ic)
+  ic <- prop.table(t(ic), 
+    margin=2)
+  a <- barplot(ic,
+    #main=paste("P:", pval),
+    ylab="fraction of patients",
+    #xlab=feat,
+    cex.names=namesCex,
+    cex.axis=axisCex,
+    cex.lab=labCex,
+    legend.text=rownames(ic),
+    col=color_palettes[["irf_palette"]],
+    width=0.16,
+    xlim=c(0,1),
+    #las=2,
+    args.legend=list(bty="n",
+          #bg=alpha("white", 0.7),
+          #box.col=alpha("white", 0.7),
+          cex=1.1,
+          x="topright"),
+    xaxt="n")
+  text(x = a, 
+    y = par("usr")[3] - 0.03, 
+    labels = levels(tmpDat[, feat]), 
+    srt = -45, 
+    #pos = 1, 
+    xpd = TRUE,
+    adj=0,
+    cex=namesCex)
+  mtext(nSamples,
+    side=3,
+    at=a,
+    line=0,
+    cex=0.7)
+  #mtext(paste("P:", pval),
+  #  side=1,
+  #  at=a[2],
+  #  line=3.5,
+  #  cex=0.8)
+  mtext(paste("TC", "response", sep=", "),
+    side=3,
+    at=a[2],
+    line=1,
+    font=titleF,
+    cex=titleCex)
+}
+```
+
+
+```{r figureS1c}
+oldMar <- par()$mar
+
+par(mar=c(5.5, 3.5, 2, 0.5))
+
+icAss <- read.csv(file.path(tablesDir,
+    "SupplementaryTableS10.csv"),
+  stringsAsFactor=FALSE,
+  check.names=FALSE)
+icAss <- icAss[, 1:8]
+icAss <- icAss[!is.na(icAss$Symbol), ]
+interferome <- read.table(file.path(tablesDir,
+    "20170503081937_GeneSearchResults_InterferomeTop300IC.txt"),
+  stringsAsFactor=FALSE,
+  sep="\t",
+  check.names=FALSE,
+  skip=19,
+  header=TRUE)
+
+cols <- "darkgrey"
+
+plot(x=icAss[,"logFC"],
+  y=-log10(icAss[,"P (adj.)"]),
+  pch=16,
+  cex=0.8,
+  col=cols,
+  ylab="",
+  xlab="",
+  lwd=2,
+  cex.axis=axisCex,
+  cex.lab=labCex)
+mtext(expression(paste("-log"["10"], " adj. p")),
+  side=2,
+  line=2,
+  cex=axisCex)
+abline(h=-log10(0.05), lty=2, col="black")
+gs <- list("Interferome"=interferome$"Gene Name"[interferome$"Gene Name" %in% icAss$Symbol[1:307]],
+  "CD 8 T effector"=ind_genes[["CD 8 T effector"]],
+  "Immune Checkpoint"=ind_genes[["Immune Checkpoint"]])
+gsC <- list("Interferome"="orange1",
+  "CD 8 T effector"="magenta2",
+  "Immune Checkpoint"="olivedrab3")
+for (g in names(gs)) {
+  ind <- which(icAss$Symbol %in% gs[[g]])
+  points(x=icAss[ind,"logFC"],
+    y=-log10(icAss[ind,"P (adj.)"]),
+    pch=16,
+    cex=0.8,
+    col=gsC[[g]])
+}
+legend("topleft",
+  pch=16,
+  col=c("orange1", "magenta2", "olivedrab3"),
+  legend=c("IFNg inducible", "CD8 T-effector", "Immune checkpoint"),
+  bty = "n",
+  cex=0.6)
+labelSub <- icAss[icAss$Symbol %in% 
+  c(ind_genes[["CD 8 T effector"]], ind_genes[["Immune Checkpoint"]]), ]
+labelPos <- c(2, 
+  2,
+  2, 
+  4, 
+  rep(3, 2), 
+  4,
+  3,
+  4,
+  2,
+  1,
+  2,
+  1,
+  2, 
+  1)
+text(x=labelSub[,"logFC"], 
+  y=-log10(labelSub[,"P (adj.)"]), 
+  labels=labelSub$Symbol, 
+  cex= 0.4, 
+  pos=labelPos)
+mtext("Expression, IC",
+    side=3,
+    at=0.5,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+mtext("log fold change",
+    side=1,
+    at=0.5,
+    line=2,
+    cex=axisCex)
+
+par(mar=oldMar)
+```
+
+
+```{r figureS1d}
+addDots <- FALSE
+
+sig <- "CD 8 T effector"
+feat <- "IC Level"
+
+oldMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 2))
+
+tmpDat <- pData(cds2)[ !is.na(pData(cds2)[, feat]), ]
+a <- boxplot(tmpDat[, sig] ~ tmpDat[, feat],
+  ylab="CD8 T-effector score",
+  col=color_palettes$ic_palette[levels(tmpDat[, feat])],
+  cex.axis=axisCex,
+  cex.lab=labCex,
+  cex.names=namesCex, 
+  whisklty = 1,
+  xaxt="n")
+axis(1,
+  at=1:nlevels(tmpDat[, feat]),
+  labels=rep("", nlevels(tmpDat[, feat])))
+text(x = 1:nlevels(tmpDat[, feat]), 
+  y = par("usr")[3] - 1.5, 
+  labels = levels(tmpDat[, feat]), 
+  xpd = TRUE,
+  cex=namesCex)
+
+if (addDots) {
+  points(y=tmpDat[, sig],
+    x=jitter(as.numeric(tmpDat[, feat]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, feat]),
+  line=0,
+  cex=0.8)
+mtext(paste("CD8 T-effector", "IC", sep=", "),
+  side=3,
+  at=2,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+pval <- signif(getPfromAnova(tmpDat[, sig], tmpDat[, feat]), 2)
+print(paste("ANOVA P for Teff signature by IC level:", pval))
+
+par(mar=oldMar)
+```
+
+
+```{r figureS1e}
+addDots <- FALSE
+alternative <- TRUE
+
+## response by Mutation burden
+
+oldMar <- par()$mar
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+bio <- "Neoantigen burden per MB"
+feat <- irf
+
+clinDat2 <- pData(cds2)[!is.na(pData(cds2)[, bio]) & pData(cds2)[, bio] > 0,]
+
+tmpDat <- clinDat2[!is.na(clinDat2[, feat]),]
+tmpDat <- tmpDat[tmpDat[, feat] != "NE",]
+tmpDat[, feat] <- droplevels(tmpDat[, feat])
+ind <- tmpDat[, bio] > 0
+tmpDat[, bio] <- log2(tmpDat[, bio])
+
+yLab <- "TNB"
+
+a <- boxplot(tmpDat[ind, bio] ~ tmpDat[ind, feat],
+  ylab=yLab,
+  col=color_palettes$irf_palette,
+  cex.main=0.6,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,  
+  whisklty = 1,
+  ylim=c(-5, log2(30)),
+  yaxt="n")
+axis(2,
+  at=log2(c(0.05,0.20,1.00,5.00,20)),
+  labels=round(c(0.05,0.20,1.00,5.00,20.00), 2),
+  cex=axisCex)
+if (addDots) {
+  points(y=tmpDat[ind, bio],
+    x=jitter(as.numeric(tmpDat[ind, feat]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+} 
+  mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, feat]),
+  line=0,
+  cex=0.8)
+
+pval <- signif(wilcox.test(as.numeric(tmpDat[ind, bio]) ~ tmpDat[ind, "binaryResponse"])$p.value, 
+    2)
+print(paste("Wilcoxon p-value, neoantigens by response:", pval))
+pval <- signif(t.test(as.numeric(tmpDat[ind, bio]) ~ tmpDat[ind, "binaryResponse"])$p.value, 
+    2)
+print(paste("T test p-value, neoantigens by response:", pval))
+
+mtext("Neoantigens, response",
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+if (alternative) {
+    yrange <- par("usr")[4] - par("usr")[3]
+    yunit <- yrange/60
+	segments(x0=1,
+	  x1=2,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 4,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=3,
+	  x1=4,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 4,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=1.5,
+	  x1=1.5,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=3.5,
+	  x1=3.5,
+	  y0=par("usr")[4] - yunit * 4,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	segments(x0=1.5,
+	  x1=3.5,
+	  y0=par("usr")[4] - yunit * 2,
+	  y1=par("usr")[4] - yunit * 2,
+	  col="black",
+	  xpd=TRUE,
+	  lwd=1)
+	text(y=par("usr")[4] - yunit ,
+	  x=2.5,
+	  labels=pLevel(pval),
+	  cex=axisCex) 
+}
+
+par(mar=oldMar)
+```
+
+```{r figureS1f, fig.width=3.5}
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, "Neoantigen burden per MB"]),]
+tmpDat$group <- cut(tmpDat[, "Neoantigen burden per MB"], 
+  quantile(tmpDat[, "Neoantigen burden per MB"], c(0, 0.25, 0.5, 0.75, 1)),
+  include.lowest = TRUE)
+tmpDat$group <- factor(tmpDat$group,
+  labels=c("1st Quart", 
+    "2nd Quart",
+    "3rd Quart",
+    "4th Quart"))
+fittedSurv <- survfit(Surv(time=os, event=censOS) ~ group, 
+  data=tmpDat)
+diffSurv <- survdiff(Surv(time=os, event=censOS) ~ group,           
+  data=tmpDat)
+plotSurvival2(survFit=fittedSurv, 
+  survDiff=diffSurv, 
+  diff.factor=as.factor(tmpDat$group), 
+  main="TNB, survival", 
+  cols=rev(color_palettes[["irf_palette"]][1:4]),
+  ltypes=rep(1, nlevels(tmpDat$group)),
+  pval="none",
+  #coxphData=coxphDat,
+  plotMedian=TRUE,
+  plot.nrisk=FALSE,
+  xLab="OS (months)",
+  lwd=3,
+  cexMedian=axisCex - 0.1,
+  cexLegend=legendCex,
+  cex.lab=labCex)
+
+print(coxph(Surv(os, censOS) ~ 
+  as.integer(tmpDat$group),
+  data=tmpDat))
+print(coxph(Surv(os, censOS) ~ 
+  as.ordered(tmpDat$group),
+  data=tmpDat))
+```
+
+
+```{r figureS1g, fig.width=11}
+keggRes <- read.csv(file.path(tablesDir,
+    "SupplementaryTableS1.csv"),
+  stringsAsFactor=FALSE,
+  check.names=FALSE)
+keggRes <- keggRes[, 1:6]
+keggRes <- keggRes[!is.na(keggRes$S), ]
+ind <- rev(1:nrow(keggRes))
+keggRes <- keggRes[ind,]
+
+up <- keggRes$Direction == "Up"
+keggRes$"P (adj.)"[up] <- log10(keggRes$"P (adj.)"[up]) * -1
+down <- keggRes$Direction == "Down"
+keggRes$"P (adj.)"[down] <- log10(keggRes$"P (adj.)"[down])
+
+resC1 <- read.csv(file.path(tablesDir,
+    "SupplementaryTableS2.csv"),
+  stringsAsFactor=FALSE,
+  check.names=FALSE)
+
+keggRes$RepGenes <- NA_character_
+for (i in 1:nrow(keggRes)) {
+  intGenes <- unlist(strsplit(keggRes$"Identified Genes"[i], ", "))
+  if (length(intGenes) > 7) {
+    intGenes <- resC1$Symbol[resC1$Symbol %in% intGenes][1:7]
+    intGenes <- c(intGenes, "...")
+  }
+  intGenes <- paste(intGenes, collapse=", ")
+  keggRes$RepGenes[i] <- intGenes
+}
+
+layout(matrix(c(1,1,0,0,0,0,1,1,0,0,0,0), 2, 6, byrow=TRUE))
+
+proliferationPathways <- c("DNA replication", 
+  "Cell cycle", 
+  "Systemic lupus erythematosus", 
+  "Alcoholism",
+  "Oocyte meiosis",
+  "Viral carcinogenesis",
+  "Progesterone-mediated oocyte maturation")
+ddrPathways <- c("Fanconi anemia pathway", "Homologous recombination", "Mismatch repair", "Nucleotide excision repair", "Base excision repair", "p53 signaling pathway")
+
+setCols <- ifelse(keggRes$Name %in% proliferationPathways,
+  "turquoise4",
+    ifelse(keggRes$Name %in% ddrPathways,
+      "magenta4", 
+        ifelse(keggRes$Name %in% "Pathways in cancer", "orange2", "darkgrey")))
+
+a <- barplot(keggRes$"P (adj.)",
+  horiz=TRUE,
+  xlab="",
+  xlim=c(-2, 6),
+  col=setCols,
+  axes=FALSE,
+  cex.main=0.9)
+mtext("Kegg pathway",
+  side=4,
+  at=max(a[,1]) + 1.5,
+  las=2,
+  line=3,
+  cex=titleCex)
+mtext("Top-scoring genes",
+  side=4,
+  at=max(a[,1]) + 1.5,
+  las=2,
+  line=24,
+  cex=titleCex)
+mtext(side=4,
+  at=a[,1],
+  text=paste0(keggRes$Name,
+    ifelse(keggRes$rep, "*", "")),
+  las=2,
+  line=1.5,
+  cex=(namesCex - 0.1))
+mtext(keggRes$RepGenes,
+  side=4,
+  at=a[,1],
+  line=22,
+  cex=(namesCex - 0.1),
+  las=2)
+axis(side=1,
+  at=c(-2, seq(from=2, to=6, by=2)),
+  labels=c(2, seq(from=2, to=6, by=2)),
+  tick=TRUE,
+  xpd=TRUE,
+  cex.axis=0.9)
+segments(x0=0,
+  x1=0,
+  y0=-0.6,
+  y1=max(a[,1])+0.7,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+mtext(expression(paste("-log"["10"], " adj. p")),
+  at=2,
+  side=1,
+  line=2.4,
+  cex=0.9)
+
+mtext(c("Positive association with TMB", "Negative"), 
+  side=2, 
+  line=1.2, 
+  at=c(a[,1][9], mean(c(a[,1][1], a[,1][2])) + 0.2),
+  cex=axisCex)
+segments(x0=-2.1,
+  x1=-2.1,
+  y0=a[,1][4] - 0.3,
+  y1=a[,1][length(a[,1])] + 0.3,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=-2.1,
+  x1=-2.1,
+  y0=a[,1][1] - 0.5,
+  y1=a[,1][3] + 0.5,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+
+legend("bottomright",
+  fill=c("turquoise4", "magenta4", "orange2"),
+  legend=c("Proliferation", "DNA damage response", expression(paste("TGF-", beta))),
+  bty="n",
+  cex=legendCex + 0.3)
+```
+
+```{r figureS1h, fig.width=5, fig.height=5}
+goi <- c("CD 8 T effector",
+  "gene19",
+  "Fanconi",
+  "MKI67",
+  "Cell cycle",
+  "DNA replication",
+  "Histones",
+  "Homologous recombination",
+  "Mismatch Repair",
+  "Nucleotide excision repair",
+  "CC Reg")
+
+pLabels <- sub("CC Reg", "Cell cycle regulation", goi)
+pLabels <- sub("CD 8 T e", "CD8 T-e", pLabels)
+
+tmp <- pData(cds2)[, goi]
+colnames(tmp) <- sub("CC Reg", "Cell cycle regulation", colnames(tmp))
+colnames(tmp) <- sub("CD 8 T e", "CD8 T-e", colnames(tmp))
+colnames(tmp) <- sub("CC Reg", "Cell cycle regulation", colnames(tmp))
+colnames(tmp) <- sub("Fanconi", "Fanconi anemia pathway", colnames(tmp))
+colnames(tmp) <- sub("p53", "p53-like", colnames(tmp))
+colnames(tmp) <- sub("gene19", "Pan-F-TBRS", colnames(tmp))
+
+M <- cor(tmp)
+corrplot.mixed(M,
+  lower="circle",
+  upper="number",
+  number.cex = 0.4,
+  order="AOE",
+  tl.cex = 0.9, 
+  tl.col = "black",
+  xpd=TRUE,
+  tl.pos="lt",
+  diag="n")
+```
+
+
+```{r figureS1i}
+addDots <- FALSE
+
+sig <- "APOBEC3A"
+
+oldMar <- par()$mar
+
+
+## plot APOBEC expression by response
+tmpDat <- pData(cds2)
+tmpDat[, sig] <- m2[sig, ]
+tmpDat <- tmpDat[tmpDat[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+pval <- signif(wilcox.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("Wilcoxon test P APOBEC3A expression by binary response:", pval))
+
+pval <- signif(t.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("T test P APOBEC3A expression by binary response:", pval))
+
+yLab <- expression(paste("APOBEC3A expression (log"["2"], ")"))
+par(mar=c(5.5, 4, 2, 0.5))
+
+a <- boxplot(tmpDat[, sig] ~ tmpDat[, irf],
+  ylab=yLab,
+  col=color_palettes$irf_palette[levels(tmpDat[, irf])],
+  cex.main=0.6,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,  
+  whisklty = 1)
+if (addDots) {
+  points(y=tmpDat[, sig],
+    x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, irf]),
+  line=0,
+  cex=0.75)
+mtext(paste(sig, "response", sep=", "),
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+
+## plot APOBEC expression by TMB
+tmpDat <- pData(cds2)
+tmpDat[, sig] <- m2[sig, ]
+ind <- tmpDat[, ml] > 0
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+plot(tmpDat[ind, sig] ~ tmpDat[ind, ml],
+    xlab="",
+    ylab=expression(paste("APOBEC3A expression (log"["2"], ")")),
+    pch=16,
+    col="darkgrey",
+    cex.axis=0.8,
+    cex.lab=labCex,
+    xaxt="n")
+axis(1,
+  at=log2(c(1,2,5,10,20,50)),
+  labels=c(1,2,5,10,20,50),
+  cex=axisCex)
+
+fit <- lm(tmpDat[ind, sig] ~ tmpDat[ind, ml])
+abline(fit, lty=2)
+
+tmp <- cor.test(tmpDat[ind, sig], tmpDat[ind, ml], method="pearson")
+text(paste("cor:", round(tmp$estimate, 2), 
+    "\nP:", signif(tmp$p.value, 2)),
+  font=2,
+  cex=0.7,
+  x=log2(2),
+  y=3.2)
+mtext("TMB",
+  at=3,
+  side=1,
+  line=2.5,
+  cex=axisCex)
+mtext(paste("TMB", sig, sep=", "),
+  at=3,
+  side=3,
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+```{r figureS1j}
+addDots <- FALSE
+
+sig <- "APOBEC3B"
+
+oldMar <- par()$mar
+
+
+## plot APOBEC expression by response
+tmpDat <- pData(cds2)
+tmpDat[, sig] <- m2[sig, ]
+tmpDat <- tmpDat[tmpDat[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+pval <- signif(wilcox.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("Wilcoxon test P APOBEC3B expression by binary response:", pval))
+
+pval <- signif(t.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+2)
+print(paste("T test P APOBEC3B expression by binary response:", pval))
+
+yLab <- expression(paste("APOBEC3B expression (log"["2"], ")"))
+par(mar=c(5.5, 4, 2, 0.5))
+
+a <- boxplot(tmpDat[, sig] ~ tmpDat[, irf],
+  ylab=yLab,
+  col=color_palettes$irf_palette[levels(tmpDat[, irf])],
+  cex.main=0.6,
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex,  
+  whisklty = 1)
+if (addDots) {
+  points(y=tmpDat[, sig],
+    x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, irf]),
+  line=0,
+  cex=0.75)
+mtext(paste(sig, "response", sep=", "),
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+
+## plot APOBEC expression by TMB
+tmpDat <- pData(cds2)
+tmpDat[, sig] <- m2[sig, ]
+ind <- tmpDat[, ml] > 0
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+plot(tmpDat[ind, sig] ~ tmpDat[ind, ml],
+    xlab="",
+    ylab=expression(paste("APOBEC3B expression (log"["2"], ")")),
+    pch=16,
+    col="darkgrey",
+    cex.axis=0.8,
+    cex.lab=labCex,
+    xaxt="n")
+axis(1,
+  at=log2(c(1,2,5,10,20,50)),
+  labels=c(1,2,5,10,20,50),
+  cex=axisCex)
+
+fit <- lm(tmpDat[ind, sig] ~ tmpDat[ind, ml])
+abline(fit, lty=2)
+
+tmp <- cor.test(tmpDat[ind, sig], tmpDat[ind, ml], method="pearson")
+text(paste("cor:", round(tmp$estimate, 2), 
+    "\nP:", signif(tmp$p.value, 2)),
+  font=2,
+  cex=0.7,
+  x=log2(2),
+  y=2)
+mtext("TMB",
+  at=3,
+  side=1,
+  line=2.5,
+  cex=axisCex)
+mtext(paste("TMB", sig, sep=", "),
+  at=3,
+  side=3,
+  line=1,
+  cex=titleCex,
+  font=titleF)
+
+par(mar=oldMar)
+```
+
+
+```{r figureS1k, fig.width=3.5}
+path <- "CC Reg"
+
+fmiPathP <- pathFMIout[pathFMIout$category == "TMB", ]
+fmiGeneP <- pathFMIout3[pathFMIout3$category == "TMB", ]
+
+ids <- ind_genes[[path]]
+ids <- ids[ids %in% featureNames(fmi)]
+fmiGoi <- fmi[featureNames(fmi) %in% ids, ]
+sOrder <- order(as.numeric(pData(fmiGoi)[, ml]), decreasing=TRUE)
+
+mutGoi <- any_mutation(fmiGoi)
+
+tmp1 <- mutGoi[rowSums(mutGoi) > 0,]
+tmp2 <- colSums(tmp1)
+tmp2 <- tmp2 > 0
+if ("TP53" %in% ids) {
+  tmp3 <- mutGoi[ids[! ids %in% "TP53"], ]
+  tmp3 <- colSums(tmp3)
+  tmp3 <- tmp3 > 0
+  tmp2 <- rbind(tmp2, tmp3)
+}
+toSort <- rowSums(tmp1)
+toSort <- sort(toSort, decreasing=TRUE)
+mutGoi <- rbind(tmp1[names(toSort),], tmp2)
+rownames(mutGoi)[rownames(mutGoi) == "tmp2"] <- "pathway"
+if ("TP53" %in% ids) {
+  rownames(mutGoi)[rownames(mutGoi) == "tmp3"] <- "pathway w/o TP53"
+}
+
+
+mutGoi <- apply(mutGoi, 2, function(x) {
+  ifelse(x, "mutant", "")
+})
+
+fmiCols <- c(mutant="black")
+alter_fun = function(x, y, w, h, v) {
+    if(v["mutant"]) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = fmiCols["mutant"], 
+      col = NA))
+  }
+
+
+ha = HeatmapAnnotation(TMB = anno_barplot(as.numeric(pData(fmiGoi)[sOrder, ml]),
+    border=FALSE,
+    gp = gpar(fill="black")),
+  annotation_legend_param=list(gp = gpar(fontsize = 1)),
+  show_annotation_name = TRUE,
+  annotation_name_side="left",
+  annotation_name_gp = gpar(fontsize = 10))
+
+rownames(mutGoi) <- paste0(rownames(mutGoi),
+  ifelse(rownames(mutGoi) %in% fmiGeneP$Gene[fmiGeneP$AdjP < 0.05], "*", ""))
+
+op1 <- oncoPrint(mutGoi[, sOrder], 
+  col=fmiCols,
+  alter_fun=alter_fun,
+  row_order=NULL,
+  column_order=NULL,
+  column_title = "Mutations in cell cycle regulation genes", 
+  top_annotation=ha,
+  show_pct=TRUE,
+  pct_gp = gpar(fontsize = 9),
+  row_names_gp = gpar(fontsize = 9),
+  column_title_gp = gpar(fontsize = 10),
+  heatmap_legend_param=list(title ="Mutation Status"),
+  show_row_barplot = FALSE,
+  show_heatmap_legend = FALSE)
+draw(op1, 
+  padding = unit(c(1, 5, 0, 1), "mm"),
+  row_title="mutation prevalence",
+  row_title_gp=gpar(fontsize = 10))
+```
+
+
+```{r figureS1l}
+ind <- !is.na(pData(fmi)$binaryResponse)
+pData(fmi)$binaryResponse <- factor(pData(fmi)$binaryResponse,
+  levels=c("CR/PR", "SD/PD"))
+
+par(mar=c(5.5, 4.1, 2, 0))
+
+path <- "CC Reg"
+
+ids <- ind_genes[[path]]
+ids <- ids[!ids %in% "TP53"]
+tmp <- fmi[featureNames(fmi) %in% ids, ]
+mutStatus <- any_mutation(tmp)
+mutStatus <- colSums(mutStatus)
+
+pval <- signif(fisher.test(table(pData(fmi)[ind, "binaryResponse"], mutStatus[ind] > 0))$p.value)
+print(paste("Fisher P binary response by CCR mutation status:", pval))
+
+b <- table(responder = fmi$binaryResponse[ind],
+        mutant = factor(mutStatus[ind] > 0))
+nSamples <- colSums(b)
+d <- prop.table(b, 
+margin=2)
+
+a <- barplot(d,
+  legend.text=colnames(d),
+  col=color_palettes$response_palette[rownames(d)],
+  cex.names=namesCex,
+  cex.axis=axisCex,
+  cex.lab=labCex,
+  width=0.2,
+  xlim=c(0,1),
+  ylab="fraction of patients",
+  xaxt="n",
+  args.legend=list(x="topright",
+    bty="n",
+    fill=color_palettes$response_palette,
+    legend=c("CR/PR", "SD/PD"),
+    cex=legendCex))
+text(x = a, 
+  y = par("usr")[3] - 0.06, 
+  labels = ifelse(colnames(d) == FALSE, "non-mutant", "mutant"), 
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex,
+  xpd=TRUE)
+mtext(nSamples,
+  side=3,
+  at=a,
+  line=0,
+  cex=0.7)
+mtext("CCR w/o TP53, response",
+  side=3,
+  at=mean(a),
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+par(mar=oldMar)
+```
+
+
+
+## ED Figure 2
+
+```{r figureS2a, fig.width=11, fig.height=5}
+orgMar <- par()$mar
+
+keggRes <- read.csv(file.path(tablesDir,
+    "SupplementaryTableS6.csv"),
+  stringsAsFactor=FALSE,
+  check.names=FALSE)
+keggRes <- keggRes[, 1:6]
+keggRes <- keggRes[!is.na(keggRes$S), ]
+ind <- rev(1:nrow(keggRes))
+keggRes <- keggRes[ind,]
+
+up <- keggRes$Direction == "Up"
+keggRes$"P (adj.)"[up] <- log10(keggRes$"P (adj.)"[up]) * -1
+down <- keggRes$Direction == "Down"
+keggRes$"P (adj.)"[down] <- log10(keggRes$"P (adj.)"[down])
+
+resC1 <- read.csv(file.path(tablesDir,
+    "SupplementaryTableS3.csv"),
+  stringsAsFactor=FALSE,
+  check.names=FALSE)
+
+keggRes$RepGenes <- NA_character_
+for (i in 1:nrow(keggRes)) {
+  intGenes <- unlist(strsplit(keggRes$"Identified Genes"[i], ", "))
+  if (length(intGenes) > 7) {
+    intGenes <- resC1$Symbol[resC1$Symbol %in% intGenes][1:7]
+    intGenes <- c(intGenes, "...")
+  }
+  intGenes <- paste(intGenes, collapse=", ")
+  keggRes$RepGenes[i] <- intGenes
+}
+
+par(lheight=.7)
+layout(matrix(c(1,0,0,0,1,0,0,0), 2, 4, byrow=TRUE))
+
+
+proliferationPathways <- c("DNA replication", 
+  "Cell cycle", 
+  "Systemic lupus erythematosus", 
+  "Alcoholism",
+  "Oocyte meiosis",
+  "Viral carcinogenesis",
+  "Progesterone-mediated oocyte maturation")
+
+setCols <- ifelse(keggRes$Name %in% proliferationPathways,
+  "turquoise4",
+    ifelse(keggRes$Name %in% c("Fanconi anemia pathway", "Homologous recombination", "Mismatch repair", "Nucleotide excision repair", "Base excision repair", "p53 signaling pathway"),
+      "magenta4", 
+        ifelse(keggRes$Name %in% "Cytokine-cytokine receptor interaction", "orange2", "darkgrey")))
+
+a <- barplot(keggRes$"P (adj.)",
+  horiz=TRUE,
+  xlab="",
+  xlim=c(-1, 17),
+  col=setCols,
+  axes=FALSE)
+mtext("KEGG pathway",
+  side=4,
+  at=max(a[,1]) + 1.5,
+  las=2,
+  line=3,
+  cex=titleCex)
+mtext("Top-scoring genes",
+  side=4,
+  at=max(a[,1]) + 1.5,
+  las=2,
+  line=23,
+  cex=titleCex)
+mtext(side=4,
+  at=a[,1],
+  text=paste0(keggRes$Name,
+    ifelse(keggRes$rep, "*", "")),
+  las=2,
+  line=1.5,
+  cex=(namesCex - 0.1),
+  col="black")
+mtext(keggRes$RepGenes,
+  side=4,
+  at=a[,1],
+  line=22,
+  cex=(namesCex - 0.1),
+  las=2)
+axis(side=1,
+  at=c(-2, seq(from=2, to=16, by=2)),
+  labels=c(2, seq(from=2, to=16, by=2)),
+  tick=TRUE,
+  xpd=TRUE,
+  cex=axisCex)
+mtext(c("Up in responders", "Down"), 
+  side=2, 
+  line=1.5, 
+  at=c(a[,1][10], a[,1][1]),
+  cex=axisCex)
+segments(x0=-2.1,
+  x1=-2.1,
+  y0=a[,1][2] - 0.3,
+  y1=a[,1][length(a[,1])] + 0.3,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=-2.1,
+  x1=-2.1,
+  y0=a[,1][1] - 0.5,
+  y1=a[,1][1] + 0.5,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+
+mtext(expression(paste("-log"["10"], " adj. p")),
+  side=1,
+  line=2.75,
+  at=7,
+  cex=axisCex)
+legend("bottomright",
+  fill=c("turquoise4", "magenta4", "orange2"),
+  legend=c("Proliferation", "DNA damage response", expression(paste("TGF-", beta))),
+  bty="n",
+  cex=legendCex + 0.3)
+segments(x0=0,
+  x1=0,
+  y0=-2,
+  y1=max(a[,1])+1,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+
+par(mar=orgMar)
+```
+
+```{r figureS2bc}
+plotDots <- FALSE
+
+orgMar <- par()$mar
+
+tmpDat <- pData(cds2)
+tmpDat$IFNG <- scale(m2["IFNG", ], center=TRUE, scale=TRUE)
+tmpDat$IFNGR1 <- scale(m2["IFNGR1", ], center=TRUE, scale=TRUE)
+
+tmpDat <- tmpDat[tmpDat[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+for (sig in c("IFNG", "IFNGR1")) {
+
+  yLim1 <- -3
+  yLim2 <- ifelse(sig == "IFNG", 3, 5)
+  yLim <- c(yLim1, yLim2)
+  
+  par(mar=c(5.5, 4.1, 2, 0.5))
+
+  pval <- signif(wilcox.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+    2)
+  print(paste("Wilcoxon test P", sig, "score by binary Response:", pval))
+
+  pval <- signif(t.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+    2)
+  print(paste("T test P", sig, "score by binary Response:", pval))
+
+  yLab <- paste(sig, "expression")
+
+  a <- boxplot(tmpDat[, sig] ~ tmpDat[, irf],
+    ylab=yLab,
+    #xlab="response",
+    col=color_palettes[["irf_palette"]][levels(tmpDat[, irf])],
+    cex.axis=axisCex,
+    cex.names=namesCex,
+    cex.lab=labCex, 
+    ylim=yLim,
+    whisklty = 1)
+  if (plotDots) {
+    points(y=tmpDat[, sig],
+      x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+      col=alpha("darkgrey", 0.7),
+      pch=16)
+  }
+  mtext(a$n,
+    side=3,
+    at=1:nlevels(tmpDat[, irf]),
+    line=0,
+    cex=0.75)
+  mtext(paste0(sig, ", response"),
+    side=3,
+    at=2.5,
+    line=1,
+    font=titleF,
+    cex=titleCex)
+
+    yrange <- par("usr")[4] - par("usr")[3]
+    yunit <- yrange/60
+    segments(x0=1,
+      x1=2,
+      y0=par("usr")[4] - yunit * 4,
+      y1=par("usr")[4] - yunit * 4,
+      col="black",
+      xpd=TRUE,
+      lwd=1)
+    segments(x0=3,
+      x1=4,
+      y0=par("usr")[4] - yunit * 4,
+      y1=par("usr")[4] - yunit * 4,
+      col="black",
+      xpd=TRUE,
+      lwd=1)
+    segments(x0=1.5,
+      x1=1.5,
+      y0=par("usr")[4] - yunit * 4,
+      y1=par("usr")[4] - yunit * 2,
+      col="black",
+      xpd=TRUE,
+      lwd=1)
+    segments(x0=3.5,
+      x1=3.5,
+      y0=par("usr")[4] - yunit * 4,
+      y1=par("usr")[4] - yunit * 2,
+      col="black",
+      xpd=TRUE,
+      lwd=1)
+    segments(x0=1.5,
+      x1=3.5,
+      y0=par("usr")[4] - yunit * 2,
+      y1=par("usr")[4] - yunit * 2,
+      col="black",
+      xpd=TRUE,
+      lwd=1)
+    text(y=par("usr")[4] - yunit ,
+      x=2.5,
+      labels=pLevel(pval),
+      cex=ifelse(pLevel(pval) == "n.s.", axisCex - 0.1, axisCex)) 
+
+}
+
+par(mar=orgMar)
+```
+
+
+```{r figureS2d}
+plotDots <- FALSE
+binary <- FALSE
+
+orgMar <- par()$mar
+
+tmpDat <- pData(cds2)
+tmpDat$TGFBR2 <- scale(m2["TGFBR2", ], center=TRUE, scale=TRUE)
+
+tmpDat <- tmpDat[tmpDat[, irf] != "NE",]
+tmpDat[, irf] <- droplevels(tmpDat[, irf])
+
+sig <- "TGFBR2"
+  
+
+par(mar=c(5.5, 4.1, 2, 0.5))
+
+pval <- signif(wilcox.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+  2)
+print(paste("Wilcoxon test P", sig, "score by binary Response:", pval))
+
+pval <- signif(t.test(tmpDat[, sig] ~ tmpDat[, "binaryResponse"])$p.value, 
+  2)
+print(paste("T test P", sig, "score by binary Response:", pval))
+
+
+yLab <- paste(sig, "expression")
+
+a <- boxplot(tmpDat[, sig] ~ tmpDat[, irf],
+  ylab=yLab,
+  col=color_palettes[["irf_palette"]][levels(tmpDat[, irf])],
+  cex.axis=axisCex,
+  cex.names=namesCex,
+  cex.lab=labCex, 
+  ylim=c(-5, 5),
+  whisklty = 1)
+if (plotDots) {
+  points(y=tmpDat[, sig],
+    x=jitter(as.numeric(tmpDat[, irf]), factor=0.7),
+    col=alpha("darkgrey", 0.7),
+    pch=16)
+}
+mtext(a$n,
+  side=3,
+  at=1:nlevels(tmpDat[, irf]),
+  line=0,
+  cex=0.75)
+mtext(paste0(sig, ", response"),
+  side=3,
+  at=2.5,
+  line=1,
+  font=titleF,
+  cex=titleCex)
+
+yrange <- par("usr")[4] - par("usr")[3]
+yunit <- yrange/60
+segments(x0=1,
+  x1=2,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 4,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=3,
+  x1=4,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 4,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=1.5,
+  x1=1.5,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=3.5,
+  x1=3.5,
+  y0=par("usr")[4] - yunit * 4,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+segments(x0=1.5,
+  x1=3.5,
+  y0=par("usr")[4] - yunit * 2,
+  y1=par("usr")[4] - yunit * 2,
+  col="black",
+  xpd=TRUE,
+  lwd=1)
+text(y=par("usr")[4] - yunit ,
+  x=2.5,
+  labels=pLevel(pval),
+  cex=ifelse(pLevel(pval) == "n.s.", axisCex - 0.1, axisCex))   
+
+par(mar=orgMar)
+```
+
+```{r figureS2e, fig.width=3.5}
+bio <- "TGFBR2"
+
+tmpDat  <- pData(cds2)
+tmpDat$TGFBR2 <- m2["TGFBR2", ]
+
+tmpDat <- tmpDat[!is.na(tmpDat[, bio]),]
+tmpDat$group <- cut(tmpDat[, bio], 
+  quantile(tmpDat[, bio], c(0, 0.25, 0.5, 0.75, 1)),
+  include.lowest = TRUE)
+tmpDat$group <- factor(tmpDat$group,
+  labels=c("1st Quart", 
+    "2nd Quart",
+    "3rd Quart",
+    "4th Quart"))
+fittedSurv <- survfit(Surv(time=os, event=censOS) ~ group, 
+              data=tmpDat)
+diffSurv <- survdiff(Surv(time=os, event=censOS) ~ group,           
+            data=tmpDat)
+plotSurvival2(survFit=fittedSurv, 
+    survDiff=diffSurv, 
+    diff.factor=as.factor(tmpDat$group), 
+    main="TGFBR2, survival", 
+    cols=rev(color_palettes[["irf_palette"]][1:4]),
+    ltypes=rep(1, nlevels(tmpDat$group)),
+    pval="none",
+    #coxphData=coxphDat,
+    plotMedian=TRUE,
+    plot.nrisk=FALSE,
+    xLab="OS (months)",
+    lwd=3,
+    cexMedian=axisCex - 0.1,
+    cexLegend=legendCex,
+    cex.lab=labCex)
+
+print(coxph(Surv(os, censOS) ~ 
+  as.integer(tmpDat$group),
+  data=tmpDat))
+```
+
+
+```{r figureS2g, fig.width=3.5}
+goi <- c("CD 8 T effector",
+  "gene19")
+
+resp <- "binaryResponse"
+tmpDat <- pData(cds2)[!is.na(pData(cds2)[, resp]), ]
+tmpDat[, resp] <- droplevels(tmpDat[, resp])
+for (sig in goi) {
+  tmpDat[, sig] <- scale(tmpDat[, sig], center=TRUE, scale=TRUE) 
+}
+
+tmpDat <- tmpDat[!is.na(tmpDat[, ml]) & tmpDat[, ml] > 0, ]
+tmpDat[, ml] <- log2(tmpDat[, ml])
+
+tmpDat <- tmpDat[! is.na(tmpDat$"Immune phenotype"),]
+
+tmpDat$isExcluded <- as.factor(ifelse(tmpDat[, "Immune phenotype"] == "excluded",
+  "Yes", "No"))
+
+varExp1 <- t(sapply(c(goi, ml), function(sig) {
+  fit <- glm(tmpDat[, resp] ~ 
+    tmpDat[, sig],
+    family="binomial")
+  fit$null.deviance - fit$deviance
+}))
+varExp1 <- setNames(varExp1[1,],
+  colnames(varExp1))
+
+fit2.2 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] + tmpDat[, "gene19"],
+    family="binomial")
+varExp2.2 <- fit2.2$null.deviance - fit2.2$deviance
+
+fit2.4 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, ml] + tmpDat[, "CD 8 T effector"], 
+    family="binomial")
+varExp2.4 <- fit2.4$null.deviance - fit2.4$deviance
+
+fit2.6 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, ml] * tmpDat[, "gene19"], 
+    family="binomial")
+varExp2.6 <- fit2.6$null.deviance - fit2.6$deviance
+
+varExp2 <- c(varExp2.2, varExp2.4, varExp2.6)
+names(varExp2) <- c("Teff,TBRS", "Teff,TMB", "TBRS,TMB")
+varExp2 <- sort(varExp2)
+
+fit3.2 <- glm(tmpDat[, resp] ~ 
+    tmpDat[, "CD 8 T effector"] + tmpDat[, ml] + tmpDat[, "gene19"] +
+    tmpDat[, ml]:tmpDat[, "gene19"] +
+    tmpDat[, "gene19"]*tmpDat$isExcluded,
+    family="binomial")
+varExp3.2 <- fit3.2$null.deviance - fit3.2$deviance
+names(varExp3.2) <- "Teff,TBRS,TMB"
+
+allVars <- c(varExp1, 
+    NA, 
+    varExp2, 
+    NA, 
+    varExp3.2)
+names(allVars) <- sub("CD 8 T effector", "Teff", names(allVars))
+names(allVars) <- sub("gene19", "TBRS", names(allVars))
+names(allVars) <- sub(ml, "TMB", names(allVars))
+
+## repeat previous model to fit displayed data
+fit_teff_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"],
+  family="binomial")
+fit_tgfb_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"],
+  family="binomial")
+fit_teff_tgfb <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"] +
+  tmpDat[, "gene19"],
+  family="binomial")
+
+fit_tt_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"] +
+  tmpDat[, "gene19"],
+  family="binomial")
+fit_ml_0 <- glm(tmpDat[, resp] ~ 
+  tmpDat[, ml],
+  family="binomial")
+fit_tt_ml <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"] +
+  tmpDat[, "gene19"] +
+  tmpDat[, ml],
+  family="binomial")
+fit_tgfb_ml <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"] +
+  tmpDat[, ml],
+  family="binomial")
+fit_tgfb_ml_int <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "gene19"] *
+  tmpDat[, ml],
+  family="binomial")
+fit_teff_ml <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"] +
+  tmpDat[, ml],
+  family="binomial")
+fit_core_int <- glm(tmpDat[, resp] ~ 
+  tmpDat[, "CD 8 T effector"] +
+  tmpDat[, ml] +
+  tmpDat[, "gene19"] +
+  tmpDat[, "gene19"]:tmpDat[, ml] +
+  tmpDat[, "gene19"]*tmpDat$isExcluded,
+  family="binomial")
+
+# likelihood ratio test Ps for display
+tgfbP <- signif(anova(fit_tgfb_0, fit_teff_tgfb, test="Chisq")$"Pr(>Chi)"[2], 2)
+teffP <- signif(anova(fit_teff_0, fit_teff_tgfb, test="Chisq")$"Pr(>Chi)"[2], 2)
+ttP <- signif(anova(fit_tt_0, fit_tt_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+mlP <- signif(anova(fit_ml_0, fit_tt_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+teffmlP <- signif(anova(fit_ml_0, fit_teff_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+teffmlP2 <- signif(anova(fit_teff_0, fit_teff_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+tgfbmlP <- signif(anova(fit_ml_0, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+tgfbmlP2 <- signif(anova(fit_tgfb_0, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+tgfbmlP3 <- signif(anova(fit_tgfb_ml, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+tgfbmlP_int <- signif(anova(fit_tgfb_0, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+tgfbmlP_int2 <- signif(anova(fit_ml_0, fit_tgfb_ml_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+tt_tgfb_mlP <- signif(anova(fit_tt_ml, fit_tgfb_ml, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+core_interaction <- signif(anova(fit_tt_ml, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+core_tt <- signif(anova(fit_tt_0, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+core_tgfbml <- signif(anova(fit_tgfb_ml_int, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+core_teffml <- signif(anova(fit_teff_ml, fit_core_int, test="Chisq")$"Pr(>Chi)"[2], 2)
+
+pvals <- list(tgfbP=tgfbP,
+  teffP=teffP,
+  ttP=ttP,
+  mlP=mlP,
+  teffmlP=teffmlP,
+  teffmlP2=teffmlP2,
+  tgfbmlP=tgfbmlP,
+  tgfbmlP2=tgfbmlP2,
+  tgfbmlP3=tgfbmlP3,
+  tt_tgfb_mlP=tt_tgfb_mlP,
+  core_int=core_interaction,
+  tgfbmlP_int=tgfbmlP_int,
+  tgfbmlP_int2=tgfbmlP_int2,
+  core_tt=core_tt,
+  core_tgfbml=core_tgfbml,
+  core_teffml=core_teffml)
+print(pvals)
+pvals <- lapply(pvals, function(x) {
+  ifelse(x < 0.001, "***",
+  ifelse(x < 0.01, "**",
+    ifelse(x < 0.05, "*",
+      ifelse(x < 0.1, ".", "n.s."))))
+})
+
+
+oldMar <-  par()$mar
+
+par(mar=c(6, 3.9, 2, 0))
+
+a <- barplot(allVars,
+  main="",
+  ylab="explained variance (%)",
+  col="grey",
+  width=0.06,
+  xlim=c(0,1),
+  ylim=c(0,58),
+  #args.legend=list(bg=alpha("white", 0.7),
+  #  box.col=alpha("white", 0.7),
+  #  cex=0.9),
+  xaxt="n",
+  cex.axis=0.9)
+axis(1, 
+  at=a[c(1:3, 5:7, 9)],
+  labels=FALSE)
+text(x = a, 
+  y=-3, 
+  labels = names(allVars),
+  srt = -45, 
+  xpd = TRUE,
+  adj=0,
+  cex=namesCex)
+print("variance explained:")
+print(allVars)
+mtext(at = mean(a), 
+  line=0.85, 
+  side=3,
+  text="Variance explained, core pathways",
+  cex=titleCex,
+  font=titleF)
+
+## improvement of Teff, TBRS over single models
+text(x = a[5], 
+  y=c(16.3, 14.8), 
+  labels = unlist(pvals[c("teffP", "tgfbP")]), 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+## improvement of Teff, TMB over single models
+text(x = a[6], 
+  y=c(37.3, 35.5), 
+  labels = unlist(pvals[c("teffmlP2", "teffmlP")]), 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+## improvement of TBRS, TMB over single models
+text(x = a[7], 
+  y=c(42.5, 41), 
+  labels = unlist(pvals[c("tgfbmlP_int", "tgfbmlP_int2")]), 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+## improvement of double on final core
+segments(x0=a[7],
+  x1=a[9],
+  y0=51,
+  y1=51,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = median(c(a[7], a[9])), 
+  y=52.5, 
+  labels = pvals[["core_tgfbml"]], 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+segments(x0=a[6],
+  x1=a[9],
+  y0=55,
+  y1=55,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = median(c(a[6], a[9])), 
+  y=56.5, 
+  labels = pvals[["core_teffml"]], 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+segments(x0=a[5],
+  x1=a[9],
+  y0=59,
+  y1=59,
+  col="black",
+  xpd=TRUE,
+  lwd=2)
+text(x = median(c(a[5], a[9])), 
+  y=60.5, 
+  labels = pvals[["core_tt"]], 
+  #pos=3,
+  cex=0.9,
+  xpd=TRUE)
+
+par(mar=oldMar)
+```
+
+
+
+<br>
+<br>
+
+
+#### Session Info
+
+```{r sessioninfo, echo=FALSE, results="asis"} 
+as.character(Sys.time())
+sessionInfo()
+```

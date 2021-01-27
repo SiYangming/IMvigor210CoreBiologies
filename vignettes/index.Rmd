@@ -1,0 +1,278 @@
+---
+title: TGF-b attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells
+author: Dorothee Nickles, Yasin Senbabaoglu, Daniel Sheinson
+date: "`r format(Sys.time())`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: cosmo
+---
+
+```{r options, echo=FALSE}
+options(replace.assign=TRUE, width=90)
+opts_chunk$set(dev=c('png', 'pdf'), fig.width=2.5, fig.height=3.5, out.width='800px', fig.align='center', fig.pos='htbp', fig.retina=FALSE, dev.args=list(pointsize=11), cache=FALSE, dpi=300)
+```
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, include=TRUE)
+```
+
+# Introduction
+
+The `IMvigor210CoreBiologies` package provides methods and processed data for Mariathasan S, Turley S, Nickles D et al., "TGF-b attenuates tumor response to PD-L1 blockade by contributing to exclusion of T cells."
+
+The human raw gene expression data will be availabe at the European Genome-phenome archive (EGA) under the accession number EGAS00001002556.
+
+
+# Downloading the IMvigor210CoreBiologies package
+
+This package can be obtained from [http://research-pub.gene.com/IMvigor210CoreBiologies/IMvigor210CoreBiologies.tar.gz](http://research-pub.gene.com/IMvigor210CoreBiologies/packageVersions).
+
+
+# Installing the IMvigor210CoreBiologies package
+
+This document is a vignette included with the package. To run the code
+examples here, you will need to have already installed the package's
+dependencies and then the package itself. We used R 3.4.3 and Bioconductor 3.6. Installing dependencies is easiest via Bioconductor's biocLite utility.
+
+First load the utility:
+
+```{r utility}
+source("http://bioconductor.org/biocLite.R")
+```
+
+Now copy the following into your R session to load mandatory
+dependencies:
+
+```{r bioc_dependencies}
+biocLite(c("biomaRt",
+  "circlize",
+  "ComplexHeatmap",
+  "corrplot",
+  "DESeq",
+  "DESeq2",
+  "dplyr",
+  "DT",
+  "edgeR",
+  "ggplot2",
+  "knitr",
+  "limma",
+  "lsmeans",
+  "reshape2",
+  "rmarkdown",
+  "spatstat",
+  "survival",
+  "plyr"))
+```
+
+Finally, install `IMvigor210CoreBiologies` itself. Assuming that you're already
+running R in the directory containing the downloaded package file,
+
+```{r install}
+install.packages("IMvigor210CoreBiologies_1.0.0.tar.gz", 
+  repos=NULL)
+```
+
+As usual, once the package is installed on your system, you also need
+to load it into your active R session:
+
+```{r load.1}
+library("IMvigor210CoreBiologies")
+```
+
+
+# Data provided with this package
+
+All data used in the paper are included in this package. Code for data processing, analysis and plotting are also provided.
+
+
+## Preprocessed data
+
+### Transcriptome wide gene expression data
+
+To load a CountDataSet object called 'cds', type:
+
+```{r load_RNAseq_data}
+data(cds)
+```
+
+This CountDataSet object contains raw counts for all genes as well as basic feature and all sample annotations reported in the manuscript. These can be accessed like this:
+
+```{r access_RNAseq_data}
+head(counts(cds))
+head(fData(cds))
+head(pData(cds))
+```
+
+### Genomic alterations as assessed by FMOne panel (Foundation Medicine, Inc.)
+
+To load an NChannelSet object called 'fmone', type:
+
+```{r load_FMOne_data}
+data(fmone)
+```
+
+This NChannelSet object contains sample annotations as well as all known and likely variants, except for chromosomal rearrangements, as reported by Foundation Medicine, Inc. Each variant type is stored in a separate channel; available channels in the assayData slot of `fmone` can be viewed like this: 
+
+```{r access_FMOne_data1}
+ls.str(assayData(fmone))
+```
+
+'amplifications' and 'deletions' list copy number alterations of genes that are recurrently amplified/deleted in cancer, while 'gain' lists non-focal amplifications (> 20MB) recurrently amplified in cancer; the 'known_short' and 'likely_short' assayData slots contain short variants (< 49bp long) that are known or likely to have deleterious effects in cancer.
+
+Sample annotations and known short variants, e.g., can be accessed like this:
+
+```{r access_FMOne_data2}
+head(pData(fmone))
+head(assayDataElement(fmone, "known_short"))
+```
+
+### Data from in vivo experiments
+
+Raw data as well as output from statistical tests performed with GraphPad are available in one Excel file called `Preclinical_raw_data_and_stats.xlsx` in the `inst/tables` directory.
+
+Further several R object are available in the package's `inst/mouse` directory:    
+
+* EMT6_dge_list.rds: DGElist object containing the count dataset, sample annotation table, and gene annotation table    
+* scores.rds: data matrix for signature scores where signatures are in rows and samples in columns   
+* pheno.rds: sample annotations
+
+The last two data objects are derived from the first one (and you can use the `Figure4scores.r` script in the analysis directory (see below) to reproduce them).
+
+
+### Statistical analysis of immune cell infiltration
+
+The Matlab scripts for raw data analysis are available in the `inst/mouse` directory of the package.   
+
+
+The raw microscopy data is provided in the `inst/mouse/raw` directory of the package as excel files. You can find information for the raw image data below.   
+
+
+The R scripts that were used to generate the .RData files referenced below can be found in the `inst/analysis/imageAnalysis` directory of the package.   
+
+
+Immune cell infiltration was evaluated for each slide (i.e. each mouse) by calculating the mean nearest distance to the region of interest (ROI) border over all CD3+ marked cells within the ROI on that slide. Mean distances were then normalized per slide by dividing by the maximum distance from the ROI border to the ROI center.    
+
+
+Immune infiltration data for each individual mouse experiment can be loaded by typing:
+
+```{r load_image_data}
+data("dat19")
+data("dat57")
+data("dat25")
+```
+
+Normalized mean distances were then pooled across the three studies (666, 1430, 1436) and analyzed by linear regression with treatment group as a fixed categorical variable and ROI area and total number of CD3+ cells within the ROI as covariates. Covariate-adjusted means and 95% confidence intervals were reported for each treatment group. Pairwise comparisons among treatment groups were made using Tukey’s HSD. All analyses were performed using R, and distance calculations were made using the R package ‘spatstat’.
+
+The pooled analysis can be recapitulated by running the following script:
+
+```{r pooled_image_analysis}
+library(knitr)
+library(rmarkdown)
+analysis_dir <- system.file("analysis", package="IMvigor210CoreBiologies")
+render(file.path(analysis_dir,
+    "mouseTumorImaging-CD3-pooledAnalysis.Rmd"),
+  output_dir=getwd())
+```
+
+## Other data
+
+### Gene signatures
+
+To load all human gene signatures that were used in the presented analyses, type:
+
+```{r human_gene_signatures}
+data(human_gene_signatures)
+```
+
+This will load a named list of signatures; the signatures contain only genes that have sufficient coverage in the RNAseq data set (i.e. KEGG pathways were filtered to only those features that were used in the presented analysis). 
+
+In addition, a table listing all features used to generate the heatmaps are given as `heatmap_features.csv` in the `inst/tables` directory of the package.
+
+
+### R functions used in analyses
+
+The R script `customFunctions.R`, which is automatically sourced when loading the package, contains all custom functions defined for the reported analyses, including documentation.
+
+
+### Color palettes
+
+To load `color_palettes` used in the manuscript, please type:
+
+```{r color_palettes}
+data(color_palettes)
+```
+
+### Supplementary Tables
+
+All supplementary tables are available through the data package as well. These files an be found in the `inst/tables` directory of the package.
+
+### Raw image data
+
+The raw microscopy data is provided in the `inst/mouse/raw` directory of the package as excel files. One file has all of the data for a single image. The tab name begins with a "Sub#', which represents the tissue fragment on the image. Sometimes there are multiple, large pieces of tissue. The Lx, L0, L1, L2 zones divide the cells into subgroups depending on cell density. Each row is an xy coordinate for the centroid of a cell. Only data from the L1 and L2 zones were used.
+
+Furthermore, each zone is separated into "necro"tic and "not" necrotic subgroups.  Removing the necrotic tissue from the analysis turned out to be irrelevant. Our analysis pools the data from both subgroups.
+
+Some lists only have a single point (0, 0).  This fake point was needed to automate the file compilation.  The coordinate system is based on the whole tissue.  Any pieces (subsets) of tissue will use a single origin.
+
+The ROI perimeter is a list of xy-coordinates for the pixels comprising the edge of the tumor. The list is downsampled by 10, i.e. every 10th point is kept. 
+
+
+# Rerunning analyses
+
+All data and derived results for the manuscript can be reproduced with a set of .Rmd scripts, one for each figure, included in the `IMvigor210CoreBiologies` package. These scripts may be run from within R, or opened for inspection and line-by-line execution.
+
+## Locating the IMvigor210CoreBiologies analysis directory
+
+Once you have installed the package, you can use R to find the analysis directory:
+
+```{r analysisdir}
+analysis_dir <- system.file("analysis", package="IMvigor210CoreBiologies")
+```
+
+## Generating results shown in Figure 1 and related Extended Data
+
+When the below command is executed, an html report, `Figure1.html`, will be generated in the current working directory (if you want to save the data to a different location, change the `output_dir` argument below).   
+
+The html report contains all panels of figure 1 (except for schematic) as well as related Extended Data; in addition, statistics reported in the manuscript are printed.
+
+```{r fig1}
+library(knitr)
+library(rmarkdown)
+render(file.path(analysis_dir,
+    "Figure1.Rmd"),
+  output_dir=getwd())
+```
+
+## Generating results shown in Figure 2 and related Extended Data
+
+`Figure2.html`, generated by executing the code below, contains all panels of figure 2 (except for immunohistochemistry images) and related Extended Data.
+
+```{r fig2}
+render(file.path(analysis_dir,
+    "Figure2.Rmd"),
+  output_dir=getwd())
+```
+
+## Generating results shown in Figure 3 and related Extended Data
+
+`Figure3.html`, generated by executing the code below, contains all panels of figure 3 and related Extended Data.
+
+
+```{r fig3}
+render(file.path(analysis_dir,
+    "Figure3.Rmd"),
+  output_dir=getwd())
+```
+
+## Generating results shown in Figure 4 and related Extended Data
+
+`Figure4.html`, generated by executing the code below, contains all panels of figure 4 and related Extended Data that were not generated by GraphPad.
+
+
+```{r fig4}
+render(file.path(analysis_dir,
+    "Figure4.Rmd"),
+  output_dir=getwd())
+```

@@ -1,0 +1,179 @@
+Search Conditions
+
+Interferome Type	II
+Interferome SubType	IFNgamma
+Treatment Concentration	Any
+Treatment Time	Any
+Vivo/Vitro	Any
+Species	Homo sapiens
+System	Any
+Organ	Any
+Cell	Any
+Cell Line	Any
+Normal/Abnormal	Any
+Fold Change Up	2.0
+Fold Change Down	2.0
+Gene Symbol List	GBP5;CTLA4;CXCL9;CXCL10;ICOS;TNIP3;CXCR6;CXCL11;IL2RB;IDO1;GZMB;CD2;PDCD1;PSMB9;ZBP1;CCR8;STAT1;GZMA;SIRPG;CD3E;GBP1;IFNG;FOXP3;TNFRSF9;CD38;SLAMF1;CD3G;CD274;CD7;NKG7;CD27;PRF1;TIGIT;CD80;IL12RB1;SLAMF8;CD8A;PTPN7;KIR2DL4;CCL5;PLA2G2D;IL21R;CXCL13;GZMH;WARS;CD3D;PTPN22;PYHIN1;IL2RG;PDCD1LG2;LAX1;SLA2;SLAMF6;LAMP3;CCR5;LAG3;ITK;CST7;IL12RB2;SH2D1A;CCL4;EPSTI1;P2RY10;GBP4;ITGAL;IRF1;THEMIS;JAKMIP1;FASLG;UBD;GPR174;GNLY;GFI1;UBE2L6;NLRC5;CXCR3;PTPRC;FCRL5;RUNX3;MZB1;ZC3H12D;SAMSN1;IRF4;IGLL5;ITGAE;SLFN12L;PLEK;CCR4;CRTAM;CXCR2P1;FYB;LAP3;CCL18;FAM26F;IKZF1;GPR171;TNFSF13B;UBASH3A;RHOH;GZMK;BTLA;IFI30;ACAP1;ADAMDEC1;IL4I1;ZNF831;FCRL3;TLR8;JCHAIN;EOMES;SP140;TRAT1;IL21;CYTIP;CD6;LCP2;CD5;TYMP;LYZ;CD226;CD53;CD247;NCR1;CD48;SLAMF7;1-Sep;IL2RA;LILRB4;IL10RA;PARP9;ZAP70;SIGLEC10;TAGAP;PIM2;HCST;TBX21;C1QB;TAP1;TFEC;SASH3;TRAF3IP3;BCL2A1;SLA;KLRD1;MYO1G;KLRK1;MAP4K1;HLA-DRA;IL18RAP;SAMHD1;CYBB;MCOLN2;ANKRD36BP2;BIRC3;RGS1;HAVCR2;ABCD2;FGL2;KLRC2;RASGRP1;WAS;DOCK2;HEATR9;SCML4;KLRC1;LTA;IFIH1;ARHGAP9;NLRC3;C1QA;IL7R;BIN2;KIAA0125;AIF1;DENND1C;LCK;CD52;DOK2;HLA-DMB;SAMD3;EVI2B;TBC1D10C;FUT7;AOAH;LILRB1;HLA-F;HLA-B;LY9;IGSF6;C1QC;SIT1;TOX;ITGB2;KLRC3;CR1L;SPOCK2;SAMD9L;CD84;TNFRSF17;NCF1;SPI1;GZMM;B2M;KLRC4;CARD17;NCKAP1L;CSF2RB;FPR3;GPR132;HLA-DPB1;SNX20;GPR183;APOL6;CD74;TSHR;CXorf21;BATF2;FMNL1;FCER1G;CLEC4E;IL32;CCR2;GVINP1;KIR3DX1;LILRB2;CD86;STX11;CLEC7A;ISG20;SRGN;LAIR2;TNFRSF18;IL12B;STAT4;PARP14;GPR65;GRAP2;CLEC6A;HLA-DRB1;ADGRG5;CASP5;HLA-DOB;STAP1;IFITM1;CORO1A;CARD16;SCIMP;KCNA3;TNFRSF8;MNDA;CD28;TYROBP;LST1;HERC5;LAIR1;LTB;EVI2A;IRF8;HCK;CD180;HLA-DPA1;POU2AF1;ARHGAP15;NCF1C;CCL8;ICAM1;APOL3;IFIT3;PDE4B;HCP5;ODF3B;C4orf50;CLNK;ADGRE1;BTK;CCL4L1;JAK3;CCL3;TMEM156;ARHGAP25;CIITA;TTC24;PVRIG;CEP128;SELPLG;SPN;C3AR1;CYTH4;NOD2;ZNF80;ZNF683;DCANP1;CD300LF;SH2D2A;LCP1;CMKLR1;RAC2;SUSD3;PIK3AP1;CD79A
+
+Found a total of 159 Gene(s)
+
+Ensembl Id	Gene Name	Description	Entrez	Genbank	UniGene
+ENSG00000128284	APOL3	apolipoprotein L, 3 [Source:HGNC Symbol;Acc:14868]	80833		Hs.690817
+ENSG00000221963	APOL6	apolipoprotein L, 6 [Source:HGNC Symbol;Acc:14870]	80830	ACN51253	Hs.636032
+ENSG00000123329	ARHGAP9	Rho GTPase activating protein 9 [Source:HGNC Symbol;Acc:14130]	64333		Hs.733177
+ENSG00000166710	B2M	beta-2-microglobulin [Source:HGNC Symbol;Acc:914]	567	AAD14387	Hs.734579
+ENSG00000168062	BATF2	basic leucine zipper transcription factor, ATF-like 2 [Source:HGNC Symbol;Acc:25163]	116071		Hs.124840
+ENSG00000140379	BCL2A1	BCL2-related protein A1 [Source:HGNC Symbol;Acc:991]	597	AAC50288	
+ENSG00000023445	BIRC3	baculoviral IAP repeat containing 3 [Source:HGNC Symbol;Acc:591]	330		Hs.732738
+ENSG00000173372	C1QA	complement component 1, q subcomponent, A chain [Source:HGNC Symbol;Acc:1241]	712		
+ENSG00000173369	C1QB	complement component 1, q subcomponent, B chain [Source:HGNC Symbol;Acc:1242]	713	AAQ67338	
+ENSG00000171860	C3AR1	complement component 3a receptor 1 [Source:HGNC Symbol;Acc:1319]	719		Hs.591148
+ENSG00000204397	CARD16	caspase recruitment domain family, member 16 [Source:HGNC Symbol;Acc:33701]	114769		Hs.348365
+ENSG00000137757	CASP5	caspase 5, apoptosis-related cysteine peptidase [Source:HGNC Symbol;Acc:1506]	838	ABB58698	Hs.213327
+ENSG00000006074	CCL18	chemokine (C-C motif) ligand 18 (pulmonary and activation-regulated) [Source:HGNC Symbol;Acc:10616]	6362	BAA21670	Hs.669458
+ENSG00000129277	CCL4	chemokine (C-C motif) ligand 4 [Source:HGNC Symbol;Acc:10630]	6351	AAX07293	
+ENSG00000161570	CCL5	chemokine (C-C motif) ligand 5 [Source:HGNC Symbol;Acc:10632]	6352		Hs.705978
+ENSG00000271503	CCL5	chemokine (C-C motif) ligand 5 [Source:HGNC Symbol;Acc:10632]	6352		Hs.705978
+ENSG00000108700	CCL8	chemokine (C-C motif) ligand 8 [Source:HGNC Symbol;Acc:10635]	6355	EAW80207	Hs.713001
+ENSG00000150637	CD226	CD226 molecule [Source:HGNC Symbol;Acc:16961]	10666	AAC50560	Hs.660130
+ENSG00000198821	CD247	CD247 molecule [Source:HGNC Symbol;Acc:1677]	919	ACC61185	Hs.669326
+ENSG00000120217	CD274	CD274 molecule [Source:HGNC Symbol;Acc:17635]	29126	ABB90152	Hs.712746
+ENSG00000178562	CD28	CD28 molecule [Source:HGNC Symbol;Acc:1653]	940	AAA60581	Hs.1987
+ENSG00000004468	CD38	CD38 molecule [Source:HGNC Symbol;Acc:1667]	952		Hs.735022
+ENSG00000169442	CD52	CD52 molecule [Source:HGNC Symbol;Acc:1804]	1043	CAA44323	Hs.276770
+ENSG00000019582	CD74	CD74 molecule, major histocompatibility complex, class II invariant chain [Source:HGNC Symbol;Acc:1697]	972		Hs.436568
+ENSG00000066294	CD84	CD84 molecule [Source:HGNC Symbol;Acc:1704]	8832	CAA11264	Hs.610260
+ENSG00000114013	CD86	CD86 molecule [Source:HGNC Symbol;Acc:1705]	942		Hs.171182
+ENSG00000179583	CIITA	class II, major histocompatibility complex, transactivator [Source:HGNC Symbol;Acc:7067]	4261		Hs.716787
+ENSG00000102879	CORO1A	coronin, actin binding protein, 1A [Source:HGNC Symbol;Acc:2252]	11151	BAA07940	
+ENSG00000100368	CSF2RB	colony stimulating factor 2 receptor, beta, low-affinity (granulocyte-macrophage) [Source:HGNC Symbol;Acc:2436]	1439	BAG64130	Hs.285401
+ENSG00000077984	CST7	cystatin F (leukocystatin) [Source:HGNC Symbol;Acc:2479]	8530	AAC39788	
+ENSG00000169245	CXCL10	chemokine (C-X-C motif) ligand 10 [Source:HGNC Symbol;Acc:10637]	3627	CAA26370	Hs.632586
+ENSG00000169248	CXCL11	chemokine (C-X-C motif) ligand 11 [Source:HGNC Symbol;Acc:10638]	6373	AAK52900	Hs.632592
+ENSG00000138755	CXCL9	chemokine (C-X-C motif) ligand 9 [Source:HGNC Symbol;Acc:7098]	4283	CAA51284	Hs.77367
+ENSG00000165168	CYBB	cytochrome b-245, beta polypeptide [Source:HGNC Symbol;Acc:2578]	1536		Hs.292356
+ENSG00000115165	CYTIP	cytohesin 1 interacting protein [Source:HGNC Symbol;Acc:9506]	9595		Hs.737437
+ENSG00000134516	DOCK2	dedicator of cytokinesis 2 [Source:HGNC Symbol;Acc:2988]	1794		Hs.684170
+ENSG00000147443	DOK2	docking protein 2, 56kDa [Source:HGNC Symbol;Acc:2991]	9046		Hs.71215
+ENSG00000227826	DRB4	HLA class II histocompatibility antigen, DR beta 4 chain  [Source:UniProtKB/Swiss-Prot;Acc:P13762]		CAA46536	
+ENSG00000231021	DRB4	Homo sapiens major histocompatibility complex, class II, DR beta 4 (HLA-DRB4), mRNA. [Source:RefSeq mRNA;Acc:NM_021983]	3126	BAA14037	
+ENSG00000133106	EPSTI1	epithelial stromal interaction 1 (breast) [Source:HGNC Symbol;Acc:16465]	94240		Hs.613034
+ENSG00000126860	EVI2A	ecotropic viral integration site 2A [Source:HGNC Symbol;Acc:3499]	2123	AAA52413	Hs.662383
+ENSG00000185862	EVI2B	ecotropic viral integration site 2B [Source:HGNC Symbol;Acc:3500]	2124	BAH12493	Hs.690546
+ENSG00000127951	FGL2	fibrinogen-like 2 [Source:HGNC Symbol;Acc:3696]	10875	BAG35554	Hs.666771
+ENSG00000184922	FMNL1	formin-like 1 [Source:HGNC Symbol;Acc:1212]	752		Hs.100217
+ENSG00000082074	FYB	FYN binding protein [Source:HGNC Symbol;Acc:4036]	2533		Hs.628155
+ENSG00000117228	GBP1	guanylate binding protein 1, interferon-inducible [Source:HGNC Symbol;Acc:4182]	2633	AAA35871	Hs.443527
+ENSG00000225492	GBP1P1	guanylate binding protein 1, interferon-inducible pseudogene 1 [Source:HGNC Symbol;Acc:39561]	400759		Hs.661968
+ENSG00000162654	GBP4	guanylate binding protein 4 [Source:HGNC Symbol;Acc:20480]	115361	BAG65113	Hs.409925
+ENSG00000154451	GBP5	guanylate binding protein 5 [Source:HGNC Symbol;Acc:19895]	115362	BAC03460	Hs.513726
+ENSG00000115523	GNLY	granulysin [Source:HGNC Symbol;Acc:4414]	10578		
+ENSG00000174946	GPR171	G protein-coupled receptor 171 [Source:HGNC Symbol;Acc:30057]	29909		Hs.549152
+ENSG00000169508	GPR183	G protein-coupled receptor 183 [Source:HGNC Symbol;Acc:3128]	1880	AAA35924	Hs.679062
+ENSG00000254838	GVINP1	GTPase, very large interferon inducible pseudogene 1 [Source:HGNC Symbol;Acc:25813]	387751		Hs.721746
+ENSG00000113088	GZMK	granzyme K (granzyme 3; tryptase II) [Source:HGNC Symbol;Acc:4711]	3003	AAA79063	
+ENSG00000206337	HCP5	HLA complex P5 (non-protein coding) [Source:HGNC Symbol;Acc:21659]	10866		Hs.691948
+ENSG00000138646	HERC5	HECT and RLD domain containing E3 ubiquitin protein ligase 5 [Source:HGNC Symbol;Acc:24368]	51191		Hs.26663
+ENSG00000224608	HLA-B	major histocompatibility complex, class I, B [Source:HGNC Symbol;Acc:4932]	3106	ABN11362	Hs.737838
+ENSG00000234745	HLA-B	major histocompatibility complex, class I, B [Source:HGNC Symbol;Acc:4932]	3106	CAM35493	Hs.737838
+ENSG00000206450	HLA-B	major histocompatibility complex, class I, B [Source:HGNC Symbol;Acc:4932]	3106	ACU27272	Hs.737838
+ENSG00000232126	HLA-B	major histocompatibility complex, class I, B [Source:HGNC Symbol;Acc:4932]	3106	ABK33465	Hs.737838
+ENSG00000223532	HLA-B	major histocompatibility complex, class I, B [Source:HGNC Symbol;Acc:4932]	3106	CAM34699	Hs.737838
+ENSG00000204525	HLA-C	major histocompatibility complex, class I, C [Source:HGNC Symbol;Acc:4933]	3107	CAP72284	Hs.732433
+ENSG00000226264	HLA-DMB	major histocompatibility complex, class II, DM beta [Source:HGNC Symbol;Acc:4935]	3109	BAF81536	Hs.614506
+ENSG00000242574	HLA-DMB	major histocompatibility complex, class II, DM beta [Source:HGNC Symbol;Acc:4935]	3109	BAH14350	Hs.614506
+ENSG00000241106	HLA-DOB	major histocompatibility complex, class II, DO beta [Source:HGNC Symbol;Acc:4937]	3112	AAV97948	Hs.1802
+ENSG00000231389	HLA-DPA1	major histocompatibility complex, class II, DP alpha 1 [Source:HGNC Symbol;Acc:4938]	3113		Hs.733124
+ENSG00000168384	HLA-DPA1	major histocompatibility complex, class II, DP alpha 1 [Source:HGNC Symbol;Acc:4938]	3113		Hs.733124
+ENSG00000230708	HLA-DPB1	major histocompatibility complex, class II, DP beta 1 [Source:HGNC Symbol;Acc:4940]	3115		Hs.485130
+ENSG00000223865	HLA-DPB1	major histocompatibility complex, class II, DP beta 1 [Source:HGNC Symbol;Acc:4940]	3115	ABI93275	Hs.485130
+ENSG00000228987	HLA-DRA	major histocompatibility complex, class II, DR alpha [Source:HGNC Symbol;Acc:4947]	3122	AAV74560	
+ENSG00000204287	HLA-DRA	major histocompatibility complex, class II, DR alpha [Source:HGNC Symbol;Acc:4947]	3122	AAA59787	
+ENSG00000227993	HLA-DRA	major histocompatibility complex, class II, DR alpha [Source:HGNC Symbol;Acc:4947]	3122	AAA59787	
+ENSG00000206306	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	CAL69440	Hs.744544
+ENSG00000196126	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	ABK56695	Hs.744544
+ENSG00000206240	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	CAL69440	Hs.744544
+ENSG00000228080	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	CAL64843	Hs.744544
+ENSG00000236884	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	AAV33673	Hs.744544
+ENSG00000229074	HLA-DRB1	major histocompatibility complex, class II, DR beta 1 [Source:HGNC Symbol;Acc:4948]	3123	AAV33673	Hs.744544
+ENSG00000196101	HLA-DRB3	major histocompatibility complex, class II, DR beta 3 [Source:HGNC Symbol;Acc:4951]	3125	ABR15020	
+ENSG00000230463	HLA-DRB3$0301	HLA class II histocompatibility antigen, DR beta 3 chain  [Source:UniProtKB/Swiss-Prot;Acc:P79483]	3125	ABR15020	Hs.696211
+ENSG00000231679	HLA-DRB3$0301	Homo sapiens major histocompatibility complex, class II, DR beta 3 (HLA-DRB3), mRNA. [Source:RefSeq mRNA;Acc:NM_022555]	3125	AAB86437	
+ENSG00000227357	HLA-DRB4	major histocompatibility complex, class II, DR beta 4 [Source:HGNC Symbol;Acc:4952]	3126	BAA14037	
+ENSG00000229391	HLA-DRB6	major histocompatibility complex, class II, DR beta 6 (pseudogene) [Source:HGNC Symbol;Acc:4954]	100996809		Hs.723344
+ENSG00000204642	HLA-F	major histocompatibility complex, class I, F [Source:HGNC Symbol;Acc:4963]	3134		Hs.700263
+ENSG00000137403	HLA-F	major histocompatibility complex, class I, F [Source:HGNC Symbol;Acc:4963]	3134		Hs.700263
+ENSG00000090339	ICAM1	intercellular adhesion molecule 1 [Source:HGNC Symbol;Acc:5344]	3383		Hs.643447
+ENSG00000105371	ICAM4	intercellular adhesion molecule 4 (Landsteiner-Wiener blood group) [Source:HGNC Symbol;Acc:5347]	3386	AAA59538	Hs.706750
+ENSG00000131203	IDO1	indoleamine 2,3-dioxygenase 1 [Source:HGNC Symbol;Acc:6059]	3620	AAA36081	Hs.738619
+ENSG00000216490	IFI30	interferon, gamma-inducible protein 30 [Source:HGNC Symbol;Acc:5398]	10437	AAA36105	Hs.708970
+ENSG00000115267	IFIH1	interferon induced with helicase C domain 1 [Source:HGNC Symbol;Acc:18873]	64135	AAX93137	Hs.163173
+ENSG00000119917	IFIT3	interferon-induced protein with tetratricopeptide repeats 3 [Source:HGNC Symbol;Acc:5411]	3437	BAG59639	Hs.744072
+ENSG00000185885	IFITM1	interferon induced transmembrane protein 1 [Source:HGNC Symbol;Acc:5412]	8519	AAA35494	
+ENSG00000185201	IFITM2	interferon induced transmembrane protein 2 [Source:HGNC Symbol;Acc:5413]	10581	CAA40625	Hs.709321
+ENSG00000254709	IGLL5	immunoglobulin lambda-like polypeptide 5 [Source:HGNC Symbol;Acc:38476]	100423062		
+ENSG00000211666	IGLV2-14	immunoglobulin lambda variable 2-14 [Source:HGNC Symbol;Acc:5888]		BAA20012	Hs.729860
+ENSG00000211671	IGLV2-8	immunoglobulin lambda variable 2-8 [Source:HGNC Symbol;Acc:5895]		BAA20021	
+ENSG00000140749	IGSF6	immunoglobulin superfamily, member 6 [Source:HGNC Symbol;Acc:5953]	10261		Hs.671627
+ENSG00000096996	IL12RB1	interleukin 12 receptor, beta 1 [Source:HGNC Symbol;Acc:5971]	3594		Hs.735696
+ENSG00000081985	IL12RB2	interleukin 12 receptor, beta 2 [Source:HGNC Symbol;Acc:5972]	3595		
+ENSG00000008517	IL32	interleukin 32 [Source:HGNC Symbol;Acc:16830]	9235		
+ENSG00000168685	IL7R	interleukin 7 receptor [Source:HGNC Symbol;Acc:6024]	3575	ACL80333	Hs.619102
+ENSG00000125347	IRF1	interferon regulatory factor 1 [Source:HGNC Symbol;Acc:6116]	3659		Hs.672951
+ENSG00000140968	IRF8	interferon regulatory factor 8 [Source:HGNC Symbol;Acc:5358]	3394		Hs.137427
+ENSG00000172183	ISG20	interferon stimulated exonuclease gene 20kDa [Source:HGNC Symbol;Acc:6130]	3669		Hs.459265
+ENSG00000083457	ITGAE	integrin, alpha E (antigen CD103, human mucosal lymphocyte antigen 1; alpha polypeptide) [Source:HGNC Symbol;Acc:6147]	3682		Hs.513867
+ENSG00000113263	ITK	IL2-inducible T-cell kinase [Source:HGNC Symbol;Acc:6171]	3702	CAD98063	Hs.558348
+ENSG00000205810	KLRC3	killer cell lectin-like receptor subfamily C, member 3 [Source:HGNC Symbol;Acc:6376]	3823	AAC17490	Hs.654362
+ENSG00000183542	KLRC4	killer cell lectin-like receptor subfamily C, member 4 [Source:HGNC Symbol;Acc:6377]	8302	AAC51910	
+ENSG00000213809	KLRK1	killer cell lectin-like receptor subfamily K, member 1 [Source:HGNC Symbol;Acc:18788]	22914	AAL35226	Hs.387787
+ENSG00000089692	LAG3	lymphocyte-activation gene 3 [Source:HGNC Symbol;Acc:6476]	3902	CAA36243	Hs.409523
+ENSG00000078081	LAMP3	lysosomal-associated membrane protein 3 [Source:HGNC Symbol;Acc:14582]	27074		Hs.619233
+ENSG00000002549	LAP3	leucine aminopeptidase 3 [Source:HGNC Symbol;Acc:18449]	51056		Hs.570791
+ENSG00000043462	LCP2	lymphocyte cytosolic protein 2 (SH2 domain containing leukocyte protein of 76kDa) [Source:HGNC Symbol;Acc:6529]	3937		Hs.666017
+ENSG00000104972	LILRB1	leukocyte immunoglobulin-like receptor, subfamily B (with TM and ITIM domains), member 1 [Source:HGNC Symbol;Acc:6605]	10859		Hs.667388
+ENSG00000090382	LYZ	lysozyme [Source:HGNC Symbol;Acc:6740]	4069		Hs.524579
+ENSG00000153898	MCOLN2	mucolipin 2 [Source:HGNC Symbol;Acc:13357]	255231	EAW73219	Hs.459526
+ENSG00000158517	NCF1	neutrophil cytosolic factor 1 [Source:HGNC Symbol;Acc:7660]	653361		Hs.647047
+ENSG00000182487	NCF1B	neutrophil cytosolic factor 1B pseudogene [Source:HGNC Symbol;Acc:32522]	654816		Hs.733135
+ENSG00000189430	NCR1	natural cytotoxicity triggering receptor 1 [Source:HGNC Symbol;Acc:6731]	9437		Hs.97084
+ENSG00000140853	NLRC5	NLR family, CARD domain containing 5 [Source:HGNC Symbol;Acc:29933]	84166		Hs.708775
+ENSG00000167207	NOD2	nucleotide-binding oligomerization domain containing 2 [Source:HGNC Symbol;Acc:5331]	64127		Hs.135201
+ENSG00000173193	PARP14	poly (ADP-ribose) polymerase family, member 14 [Source:HGNC Symbol;Acc:29232]	54625		Hs.619286
+ENSG00000138496	PARP9	poly (ADP-ribose) polymerase family, member 9 [Source:HGNC Symbol;Acc:24118]	83666		Hs.634988
+ENSG00000197646	PDCD1LG2	programmed cell death 1 ligand 2 [Source:HGNC Symbol;Acc:18731]	80380	AAK31105	Hs.532279
+ENSG00000184588	PDE4B	phosphodiesterase 4B, cAMP-specific [Source:HGNC Symbol;Acc:8781]	5142		Hs.619276
+ENSG00000268173	PIK3R2	PIK3R2 protein  [Source:UniProtKB/TrEMBL;Acc:Q96CK7]	5296	AAH14170	Hs.708970
+ENSG00000102096	PIM2	pim-2 oncogene [Source:HGNC Symbol;Acc:8987]	11040		Hs.727148
+ENSG00000115956	PLEK	pleckstrin [Source:HGNC Symbol;Acc:9070]	5341	CAA30564	Hs.468840
+ENSG00000239836	PSMB9	proteasome (prosome, macropain) subunit, beta type, 9 [Source:HGNC Symbol;Acc:9546]	5698	BAG64224	Hs.606560
+ENSG00000240065	PSMB9	proteasome (prosome, macropain) subunit, beta type, 9 [Source:HGNC Symbol;Acc:9546]	5698	BAG64224	Hs.606560
+ENSG00000134242	PTPN22	protein tyrosine phosphatase, non-receptor type 22 (lymphoid) [Source:HGNC Symbol;Acc:9652]	26191		Hs.535276
+ENSG00000081237	PTPRC	protein tyrosine phosphatase, receptor type, C [Source:HGNC Symbol;Acc:9666]	5788		Hs.654514
+ENSG00000262418	PTPRC	protein tyrosine phosphatase, receptor type, C [Source:HGNC Symbol;Acc:9666]	5788		Hs.654514
+ENSG00000168421	RHOH	ras homolog family member H [Source:HGNC Symbol;Acc:686]	399		Hs.738915
+ENSG00000240143	RP4-753P9.3				Hs.737586
+ENSG00000020633	RUNX3	runt-related transcription factor 3 [Source:HGNC Symbol;Acc:10473]	864		Hs.170019
+ENSG00000177409	SAMD9L	sterile alpha motif domain containing 9-like [Source:HGNC Symbol;Acc:1349]	219285	BAG65533	Hs.489118
+ENSG00000101347	SAMHD1	SAM domain and HD domain 1 [Source:HGNC Symbol;Acc:15925]	25939	BAG65545	Hs.580681
+ENSG00000122122	SASH3	SAM and SH3 domain containing 3 [Source:HGNC Symbol;Acc:15975]	54440	CAB41255	Hs.61469
+ENSG00000110876	SELPLG	selectin P ligand [Source:HGNC Symbol;Acc:10722]	6404	BAG61866	Hs.591014
+ENSG00000026751	SLAMF7	SLAM family member 7 [Source:HGNC Symbol;Acc:21394]	57823	BAG62729	Hs.517265
+ENSG00000158714	SLAMF8	SLAM family member 8 [Source:HGNC Symbol;Acc:21391]	56833	AAF67470	Hs.438683
+ENSG00000079263	SP140	SP140 nuclear body protein [Source:HGNC Symbol;Acc:17133]	11262	EAW70922	Hs.632549
+ENSG00000197471	SPN	sialophorin [Source:HGNC Symbol;Acc:11249]	6693		Hs.632188
+ENSG00000122862	SRGN	serglycin [Source:HGNC Symbol;Acc:9361]	5552	AAA60179	
+ENSG00000035720	STAP1	signal transducing adaptor family member 1 [Source:HGNC Symbol;Acc:24133]	26228	BAG36427	Hs.435579
+ENSG00000115415	STAT1	signal transducer and activator of transcription 1, 91kDa [Source:HGNC Symbol;Acc:11362]	6772	ADA59517	Hs.743244
+ENSG00000135604	STX11	syntaxin 11 [Source:HGNC Symbol;Acc:11429]	8676	AAD02107	Hs.118958
+ENSG00000168394	TAP1	transporter 1, ATP-binding cassette, sub-family B (MDR/TAP) [Source:HGNC Symbol;Acc:43]	6890	AAD14054	
+ENSG00000250264	TAP2	Uncharacterized protein  [Source:UniProtKB/TrEMBL;Acc:E7ENX8]		CAR92541	
+ENSG00000073861	TBX21	T-box 21 [Source:HGNC Symbol;Acc:11599]	30009	AAF00055	Hs.272409
+ENSG00000105967	TFEC	transcription factor EC [Source:HGNC Symbol;Acc:11754]	22797	BAH13493	Hs.734939
+ENSG00000101916	TLR8	toll-like receptor 8 [Source:HGNC Symbol;Acc:15632]	51311	BAG59554	Hs.660543
+ENSG00000102524	TNFSF13B	tumor necrosis factor (ligand) superfamily, member 13b [Source:HGNC Symbol;Acc:11929]	10673	AAD29421	Hs.525157
+ENSG00000009790	TRAF3IP3	TRAF3 interacting protein 3 [Source:HGNC Symbol;Acc:30766]	80342	CAB41242	Hs.634602
+ENSG00000025708	TYMP	thymidine phosphorylase [Source:HGNC Symbol;Acc:3148]	1890		Hs.685254
+ENSG00000213886	UBD	ubiquitin D [Source:HGNC Symbol;Acc:18795]	10537	CAA73200	Hs.744370
+ENSG00000156587	UBE2L6	ubiquitin-conjugating enzyme E2L 6 [Source:HGNC Symbol;Acc:12490]	9246		Hs.623506
+ENSG00000140105	WARS	tryptophanyl-tRNA synthetase [Source:HGNC Symbol;Acc:12729]	7453		Hs.736264
