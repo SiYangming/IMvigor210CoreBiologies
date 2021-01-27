@@ -4,12 +4,28 @@
 \alias{plotSurvival2}
 \title{Custom version of Kaplan Meier plot}
 \usage{
-plotSurvival2(survFit, survDiff, diff.factor, main, cols,
-  xLab = "PFS (months)", yLab = "Probability of survival", ltypes = 1,
-  plotMedian = FALSE, pval = c("logrank", "coxph", "none"), coxphData,
-  legPos = "topright", mar = c(12, 9, 3, 2), plot.nrisk = FALSE,
-  nrisk.interval = 2, timemark = TRUE, lwd = 2, cexMedian = 0.75,
-  cexLegend = 0.8, ...)
+plotSurvival2(
+  survFit,
+  survDiff,
+  diff.factor,
+  main,
+  cols,
+  xLab = "PFS (months)",
+  yLab = "Probability of survival",
+  ltypes = 1,
+  plotMedian = FALSE,
+  pval = c("logrank", "coxph", "none"),
+  coxphData,
+  legPos = "topright",
+  mar = c(12, 9, 3, 2),
+  plot.nrisk = FALSE,
+  nrisk.interval = 2,
+  timemark = TRUE,
+  lwd = 2,
+  cexMedian = 0.75,
+  cexLegend = 0.8,
+  ...
+)
 }
 \arguments{
 \item{survFit}{survfit object; survfit(Surv(TTE, Cens) ~ group, data=df)}

@@ -39,14 +39,17 @@ dependencies and then the package itself. We used R 3.4.3 and Bioconductor 3.6. 
 First load the utility:
 
 ```{r utility}
-source("http://bioconductor.org/biocLite.R")
+#source("http://bioconductor.org/biocLite.R")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
 ```
 
 Now copy the following into your R session to load mandatory
 dependencies:
 
 ```{r bioc_dependencies}
-biocLite(c("biomaRt",
+#biocLite(
+BiocManager::install(c("biomaRt",
   "circlize",
   "ComplexHeatmap",
   "corrplot",

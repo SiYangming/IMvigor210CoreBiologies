@@ -5,8 +5,13 @@
 \title{Auxiliary function that prepares a gene by sample matrix for the computation of signature scores.
 If a human gene has multiple orthologs in mouse, then the mouse gene with maximum MAD (median absolute deviation) across the samples is used.}
 \usage{
-matrix4signature(x, genelist, gprofile, conversionDB,
-  lowExpressionCutoff = NULL)
+matrix4signature(
+  x,
+  genelist,
+  gprofile,
+  conversionDB,
+  lowExpressionCutoff = NULL
+)
 }
 \arguments{
 \item{x}{gene expression matrix; normalized (CPM, TPM, RPKM, FPKM, etc.) but not standardized across samples; samples in columns, genes in rows}

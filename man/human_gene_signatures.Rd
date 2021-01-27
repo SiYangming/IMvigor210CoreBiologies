@@ -4,7 +4,8 @@
 \name{human_gene_signatures}
 \alias{human_gene_signatures}
 \title{Human gene signatures}
-\format{list with each member representing one gene set.
+\format{
+list with each member representing one gene set.
 \describe{
   \item{CD 8 T effector}{CD8 T-effector signature}
   \item{DDR}{DNA Damage Repair signature (based on KEGG)}
@@ -23,7 +24,8 @@
   \item{EMT1}{Epithelial to Mesenchymal Transition signature 1 (based on literature)}
   \item{EMT2}{Epithelial to Mesenchymal Transition signature 2 (based on literature)}
   \item{EMT3}{Epithelial to Mesenchymal Transition signature 3 (based on literature)}
-}}
+}
+}
 \source{
 Extended Data Table S2
 }

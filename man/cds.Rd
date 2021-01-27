@@ -4,7 +4,8 @@
 \name{cds}
 \alias{cds}
 \title{Count data for the transcriptomes of the participants of the IMvigor210 trial}
-\format{A countDataSet raw counts for all genes as well as basic feature and
+\format{
+A countDataSet raw counts for all genes as well as basic feature and
 all sample annotations reported in the manuscript:
 \describe{
   \item{ANONPT_ID}{Identifier, mock patient ID}
@@ -30,7 +31,8 @@ all sample annotations reported in the manuscript:
   \item{Tissue}{tissue origin of sample}
   \item{Received platinum}{Has the patient ever received platinum treatment? (Y)es/(N)o}
   \item{Sample collected pre-platinum}{If patient has received platinum, was sample collected before treatment? (Y)es/(N)o}
-}}
+}
+}
 \source{
 EGAS00001002556
 }

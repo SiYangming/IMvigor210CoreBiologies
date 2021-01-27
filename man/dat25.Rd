@@ -5,13 +5,15 @@
 \alias{dat25}
 \title{Mouse tumor region-of-interest (ROI) perimeter coordinates and
  CD3+ immune cell coordinates from three one of three mouse studies (1436)}
-\format{Each .rdata file represents a single mouse study and contains a hyperframe where
+\format{
+Each .rdata file represents a single mouse study and contains a hyperframe where
 \describe{
   \item{Barcode}{barcode label for the mouse slide}
   \item{Group}{treatment group identifier}
   \item{window}{a ‘owin’ object as defined in the ‘spatstat’ R package that contains coordinates of the tumor ROI border}
   \item{y}{a point process pattern (ppp) object as defined in the ‘spatstat’ R package that contains coordinates of the CD3+ immune cells}
-}}
+}
+}
 \usage{
 data(dat25)
 }

@@ -4,7 +4,9 @@
 \name{color_palettes}
 \alias{color_palettes}
 \title{Color palettes for reproducing original graphs}
-\format{list with each member representing one color palette.}
+\format{
+list with each member representing one color palette.
+}
 \usage{
 data(color_palettes)
 }

@@ -4,7 +4,8 @@
 \name{fmone}
 \alias{fmone}
 \title{Targeted mutation data for the participants of the IMvigor210 trial}
-\format{An NChannelSet containing sample annotations as well as all known and likely variants,
+\format{
+An NChannelSet containing sample annotations as well as all known and likely variants,
 except for chromosomal rearrangements, as reported by Foundation Medicine, Inc.
 Each variant type is stored in a separate channel.
 \describe{
@@ -19,7 +20,8 @@ Each variant type is stored in a separate channel.
   \item{IC Level}{level of IHC-assessed PD-L1 staining on immune cells (IC), with IC0 meaning <1 percent, IC1 >= 1 percent but <5 percent, IC2+ >= 5 percent immune cells staining for PD-L1}
   \item{TC Level}{level of IHC-assessed PD-L1 staining on tumor cells (TC), with TC0 meaning <1 percent, TC1 >= 1 percent but <5 percent, TC2+ >= 5 percent tumor cells staining for PD-L1}
   \item{FMOne mutation burden per MB}{tumor mutation burden, i.e. number of mutations per MB; as estimated by FMOne panel}
-}}
+}
+}
 \usage{
 data(fmone)
 }

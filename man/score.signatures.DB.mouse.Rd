@@ -4,8 +4,15 @@
 \alias{score.signatures.DB.mouse}
 \title{Score mouse gene expression samples for signatures.}
 \usage{
-score.signatures.DB.mouse(x, glist, gprofile, conversionDB,
-  log.inside = FALSE, print.sig.names = TRUE, lowExpressionCutoff = NULL)
+score.signatures.DB.mouse(
+  x,
+  glist,
+  gprofile,
+  conversionDB,
+  log.inside = FALSE,
+  print.sig.names = TRUE,
+  lowExpressionCutoff = NULL
+)
 }
 \arguments{
 \item{x}{gene expression matrix; normalized (CPM, TPM, RPKM, FPKM, etc.) but not standardized across samples; samples in columns, genes in rows}

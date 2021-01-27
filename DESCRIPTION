@@ -10,12 +10,12 @@ Maintainer: Dorothee Nickles <nickles.dorothee@gene.com>
 Description: 
 	Data and software R package enabling the reproduction of results presented in the manuscript.
 Depends: R (>= 3.5), Biobase
-Imports: biomaRt, circlize, ComplexHeatmap, corrplot, DESeq2, tibble,
+Imports: circlize, ComplexHeatmap, corrplot, DESeq2, tibble,
         dplyr, DT, edgeR, ggplot2, graphics, limma, lsmeans, methods,
-        reshape2, spatstat, stats, survival, plyr
+        reshape2, spatstat, stats, survival, plyr, DESeq
 Suggests: roxygen2
 License: file LICENSE
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 7.1.1
 Encoding: UTF-8
 NeedsCompilation: no
 Packaged: 2019-02-12 04:47:28 UTC; nicklesd
